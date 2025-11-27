@@ -8,5 +8,5 @@
 
 ---
 
-<img src="images/illustration/Overview.svg">
+<img src="images/Overview.svg">
 
