@@ -1,0 +1,16 @@
+# --- 基本ライブラリ ---
+numpy
+scipy
+scikit-learn
+matplotlib
+colorcet
+
+# torch>=2.1
+chemomae           # https://github.com/Mantis-Ryuji/ChemoMAE
+
+# --- 画像処理・前処理 ---
+scikit-image
+spectral           # spectral.io.envi のため
+
+# --- ユーティリティ ---
+pyyaml             # config.yaml 読み込み用
