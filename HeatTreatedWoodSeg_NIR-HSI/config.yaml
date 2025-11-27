@@ -1,0 +1,90 @@
+# -------------------------
+# ChemoMAE 設定
+# -------------------------
+model:
+
+  # -------------------------
+  # Encoder (Transformer)
+  # -------------------------
+  # 入力系列長（波長チャンネル数）。データ次元に必ず一致させる
+  seq_len: 256
+  # モデル幅（埋め込み次元）。大きいほど表現力↑だがVRAM消費↑
+  d_model: 256
+  # マルチヘッド数。d_modelはnheadで割り切れる必要あり
+  nhead: 4
+  # Transformer Encoder の層数。深さが増えるほど表現力↑・計算量↑
+  num_layers: 8
+  # FFN部の隠れ次元。d_modelの4倍程度が一般的
+  dim_feedforward: 1024
+  # Dropout率。
+  dropout: 0.1
+  # 位置埋め込みの方式。True=学習可能、False=サイン波固定
+  use_learnable_pos: true
+  # 潜在表現の次元数。Encoder出力を線形変換後L2正規化して使う
+  latent_dim: 16
+
+  # -------------------------
+  # Mask 設定（ブロック単位の可視/マスク）
+  # -------------------------
+  # シーケンスを n_blocks 等分し、そのうち n_mask ブロックをマスク
+  # ※ seq_len は n_blocks で割り切れる必要がある
+  n_blocks: 32
+  n_mask: 24
+
+# -------------------------
+# 学習設定
+# -------------------------
+training:
+  seed: 42                 # 乱数シード。再現性確保のため固定
+
+  # DataLoader
+  batch_size: 2048         # 大規模バッチ。安定化と高速化
+  num_workers: 8           # 並列データ読み込みスレッド数
+  pin_memory: true         # CUDAへ転送最適化
+  persistent_workers: true # DataLoaderワーカーを永続化し高速化
+
+  # Optimizer / AdamW
+  base_lr: 0.001           # 学習率（スケジューラ基準）
+  weight_decay: 0.05       # AdamW正則化。bias/norm/cls/pos_emb はコード側で除外
+  betas: [0.9, 0.95]       # 慣習的にMAE系でよく使う値
+  eps: 1.0e-8              # 数値安定用イプシロン
+
+  # Scheduler (warmup + cosine annealing)
+  warmup_epochs: 5        # 学習初期のウォームアップ。発散防止
+  min_lr_scale: 0.01       # 最終LRは base_lr×0.01。
+
+  epochs: 100              # 最大エポック数（早停にかからなければここまで回す）
+  early_stop_patience: 10  # val改善が途切れた連続エポック数で早停
+
+# -------------------------
+# テスト設定
+# -------------------------
+test:
+  # 評価用に読み込む重みファイル。
+  # 通常は学習時に保存された best_model.pt を参照
+  weights_path: "runs/best_model.pt"
+
+# -------------------------
+# クラスタリング設定
+# -------------------------
+clustering:
+  # エルボー法で探索する最大クラスタ数K。
+  k_max: 30
+  # ストリーミング処理時のチャンクサイズ（サンプル数）。
+  # VRAM/RAMに合わせて調整。大きいほど高速だが負荷↑
+  chunk: 5000000
+
+# -------------------------
+# Silhouetteレポート設定
+# -------------------------
+report:
+  # ブートストラップ反復数（平均の95%CI用）
+  n_boot: 5000
+
+  # 乱数シード（ここを変えるだけで NumPy/Torch 両方のシードが切り替わる）
+  seed: 42
+
+  # GPU 上でのリサンプリング設定
+  # data_chunk × boot_chunk が VRAM 使用量の主因
+  data_chunk: 5000000 
+  boot_chunk: 500
