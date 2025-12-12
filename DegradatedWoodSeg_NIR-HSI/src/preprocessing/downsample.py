@@ -79,7 +79,7 @@ def return_downsampled_dataset_np(
     data_list: List[np.ndarray],   # 各: (H, W, C)
     masks: List[np.ndarray],       # 各: (H, W)  1=有効
     *,
-    ratio: float = 0.1,
+    ratio: float = 0.25,
     seed: Optional[int] = 42,
     out_name: str = "reflectance_snv_downsampled.npy",
     trim: bool = False,
