@@ -121,6 +121,7 @@ def return_downsampled_dataset_np(
             X_down = cosine_fps_downsample(
                 X_snv.astype(np.float32, copy=False),
                 ratio=ratio,
+                seed=seed
             )
 
         # Rim trimming (optional)

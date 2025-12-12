@@ -105,7 +105,7 @@ def main() -> None:
         x_origin_list,
         x_recon_list,
         visible_mask_list,
-        n_blocks=cfg.model.n_blocks,
+        n_blocks=cfg.model.n_patches,
     )
     plt.savefig(RECON_FIG_PATH, dpi=300)
     

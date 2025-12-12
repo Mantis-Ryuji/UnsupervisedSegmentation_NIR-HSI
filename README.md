@@ -3,7 +3,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.1.3-yellow)](#)
 [![PyTorch](https://img.shields.io/badge/torch-2.6-orange)](#)
-[![chemomae](https://img.shields.io/badge/chemomae-0.1.2-green)](https://pypi.org/project/chemomae/)
+[![chemomae](https://img.shields.io/badge/chemomae-0.1.4-green)](https://github.com/Mantis-Ryuji/ChemoMAE)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](./LICENSE)
 
 ---

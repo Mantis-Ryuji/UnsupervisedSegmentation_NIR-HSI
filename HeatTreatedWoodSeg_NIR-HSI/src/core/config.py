@@ -24,18 +24,17 @@ class ModelConfig:
     # Encoder (Transformer)
     # -------------------------
     seq_len: int = 256
-    d_model: int = 256
-    nhead: int = 4
+    d_model: int = 512
+    nhead: int = 8
     num_layers: int = 8
-    dim_feedforward: int = 1024
+    dim_feedforward: int = 2048
     dropout: float = 0.1
-    use_learnable_pos: bool = True
 
     # -------------------------
     # Latent / Masking
     # -------------------------
-    latent_dim: int = 64
-    n_blocks: int = 32
+    latent_dim: int = 16
+    n_patches: int = 32
     n_mask: int = 24
 
 
@@ -130,9 +129,8 @@ def _as_model_cfg(d: Mapping[str, Any]) -> ModelConfig:
         num_layers=int(d.get("num_layers", base.num_layers)),
         dim_feedforward=int(d.get("dim_feedforward", base.dim_feedforward)),
         dropout=float(d.get("dropout", base.dropout)),
-        use_learnable_pos=bool(d.get("use_learnable_pos", base.use_learnable_pos)),
         latent_dim=int(d.get("latent_dim", base.latent_dim)),
-        n_blocks=int(d.get("n_blocks", base.n_blocks)),
+        n_patches=int(d.get("n_patches", base.n_patches)),
         n_mask=int(d.get("n_mask", base.n_mask)),
     )
 

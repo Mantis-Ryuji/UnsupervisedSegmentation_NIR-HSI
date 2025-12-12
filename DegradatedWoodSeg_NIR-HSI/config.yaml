@@ -9,26 +9,24 @@ model:
   # 入力系列長（波長チャンネル数）。データ次元に必ず一致させる
   seq_len: 256
   # モデル幅（埋め込み次元）。大きいほど表現力↑だがVRAM消費↑
-  d_model: 256
+  d_model: 512
   # マルチヘッド数。d_modelはnheadで割り切れる必要あり
-  nhead: 4
+  nhead: 8
   # Transformer Encoder の層数。深さが増えるほど表現力↑・計算量↑
   num_layers: 8
   # FFN部の隠れ次元。d_modelの4倍程度が一般的
-  dim_feedforward: 1024
+  dim_feedforward: 2048
   # Dropout率。
   dropout: 0.1
-  # 位置埋め込みの方式。True=学習可能、False=サイン波固定
-  use_learnable_pos: true
   # 潜在表現の次元数。Encoder出力を線形変換後L2正規化して使う
   latent_dim: 16
 
   # -------------------------
-  # Mask 設定（ブロック単位の可視/マスク）
+  # Mask 設定
   # -------------------------
-  # シーケンスを n_blocks 等分し、そのうち n_mask ブロックをマスク
-  # ※ seq_len は n_blocks で割り切れる必要がある
-  n_blocks: 32
+  # シーケンスを n_patches 等分し、そのうち n_mask 数のパッチをマスク
+  # ※ seq_len は n_patches で割り切れる必要がある
+  n_patches: 32
   n_mask: 24
 
 # -------------------------
@@ -38,7 +36,7 @@ training:
   seed: 42                 # 乱数シード。再現性確保のため固定
 
   # DataLoader
-  batch_size: 2048         # 大規模バッチ。安定化と高速化
+  batch_size: 4096         # 大規模バッチ。安定化と高速化
   num_workers: 8           # 並列データ読み込みスレッド数
   pin_memory: true         # CUDAへ転送最適化
   persistent_workers: true # DataLoaderワーカーを永続化し高速化
@@ -50,7 +48,7 @@ training:
   eps: 1.0e-8              # 数値安定用イプシロン
 
   # Scheduler (warmup + cosine annealing)
-  warmup_epochs: 5        # 学習初期のウォームアップ。発散防止
+  warmup_epochs: 3        # 学習初期のウォームアップ。
   min_lr_scale: 0.01       # 最終LRは base_lr×0.01。
 
   epochs: 100              # 最大エポック数（早停にかからなければここまで回す）

@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 
-from chemomae.clustering import CosineKMeans, elbow_ckmeans, plot_elbow_ckm
+from chemomae.clustering import CosineKMeans, elbow_ckmeans, plot_elbow_ckm, silhouette_score_cosine_gpu
 from chemomae.utils.seed import set_global_seed
 
 from src.core.config import load_config
@@ -28,7 +28,8 @@ LATENT_TRAIN_PATH = get_latent_path("train")
 LATENT_VAL_PATH   = get_latent_path("val")
 
 IMG_LOG_DIR       = IMAGES_DIR / "logs"
-ELBOW_IMG_PATH    = IMG_LOG_DIR / "elbow_latent_ckm.png"
+ELBOW_IMG_PATH    = IMG_LOG_DIR / "elbow_k.png"
+SIL_IMG_PATH      = IMG_LOG_DIR / "silhouette_k_opt.png"
 
 CENTROID_OUT_PATH = get_centroid_path("latent")         # runs/latent_ckm.pt
 REPORT_DIR       = RUNS_DIR / "clustering_report"
@@ -84,7 +85,7 @@ def main() -> None:
     )
 
     # --- クラスタ数 K を自動決定（曲率法 / エルボー法）---
-    k_list, inertias, k_opt, idx, kappa = elbow_ckmeans(
+    k_list, inertias, k_elbow, idx, kappa = elbow_ckmeans(
         CosineKMeans,   # クラスタリングアルゴリズム（ここではCosineKMeans）
         latent,
         device=device,
@@ -95,8 +96,67 @@ def main() -> None:
     )
 
     # --- エルボーカーブを保存 ---
-    plot_elbow_ckm(k_list, inertias, k_opt, idx)
+    plot_elbow_ckm(k_list, inertias, k_elbow, idx)
     plt.savefig(ELBOW_IMG_PATH, dpi=300)
+    plt.close()
+    
+    # =====================================================
+    # Silhouette による最終 k_opt の決定
+    #   - k_elbow ± 3 の範囲（[2, k_max] にクリップ）で
+    #     cosine silhouette を最大化する k を採用
+    # =====================================================
+    k_candidates = [
+        k for k in range(k_elbow - 3, k_elbow + 4)
+        if 2 <= k <= k_max
+    ]
+
+    sil_scores = []
+    best_k = None
+    best_sil = -1.0
+
+    for k in k_candidates:
+        print(f"[Silhouette] k = {k}")
+
+        # --- クラスタリング ---
+        ckm_tmp = CosineKMeans(
+            n_components=int(k),
+            device=device,
+            random_state=seed,
+        )
+        labels = ckm_tmp.fit_predict(latent, chunk=chunk)
+
+        # --- Silhouette スコア算出（GPU）---
+        sil = silhouette_score_cosine_gpu(
+            latent,
+            labels,
+            device=device,
+            chunk=chunk,
+            return_numpy=True,
+        )
+        sil_scores.append(sil)
+        print(f"  silhouette_score = {sil:.6f}")
+
+        if sil > best_sil:
+            best_sil = sil
+            best_k = k
+
+    k_opt = int(best_k)
+
+    print("\n===== Silhouette Selection Result =====")
+    print(f"  k_elbow = {int(k_elbow)}")
+    print(f"  k_opt   = {k_opt}  (silhouette = {best_sil:.6f})\n")
+
+    # Silhouette プロット（横軸 = k_candidates）
+    plt.figure(figsize=(6,4))
+    plt.plot(k_candidates, sil_scores, marker="o", label="Silhouette score")
+    # 最適 k_opt
+    plt.axvline(k_opt, color="red", linestyle="--", label=f"k_opt={k_opt}")
+    plt.xticks(k_candidates)
+    plt.xlabel("k")
+    plt.ylabel("silhouette score")
+    plt.grid(True, linestyle="--", alpha=0.5)
+    plt.legend()
+    plt.savefig(SIL_IMG_PATH, dpi=300)
     plt.close()
 
     # --- CosineKMeans による実クラスタリング ---
