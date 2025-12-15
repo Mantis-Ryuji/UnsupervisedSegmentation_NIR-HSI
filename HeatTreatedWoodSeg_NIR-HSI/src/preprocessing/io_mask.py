@@ -26,11 +26,23 @@ NORM_MAP_DIR = IMAGES_DIR / "norm_maps"
 MASK_IMG_DIR = IMAGES_DIR / "masks"
 
 
-def load(folder: str, sample_name: str) -> tuple[np.ndarray, np.ndarray]:
+def load(
+    folder: str,
+    sample_name: str,
+    *,
+    dim_start: int = 0,
+    dim_end: int = 210,  # exclusive
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     指定フォルダ内からサンプルのスペクトルデータを読み込み、
-    反射率スペクトル (R) と対応する波長ベクトル (wave) を返す。
+    強度（I）、反射率スペクトル (R)、対応する波長ベクトル (wave) を返す。
+
+    Notes
+    -----
+    - スペクトル次元は index ベースで [dim_start, dim_end) にクリップされる
+    - デフォルトでは 256 → 224 dim（長波長側をカット）
     """
+
     dark_hdr  = WHITE_DARK_DIR / "D.hdr"
     dark_raw  = WHITE_DARK_DIR / "D.raw"
     white_hdr = WHITE_DARK_DIR / "W.hdr"
@@ -50,6 +62,17 @@ def load(folder: str, sample_name: str) -> tuple[np.ndarray, np.ndarray]:
     wave_raw = sample.metadata.get("wavelength")
     wave = np.array(wave_raw, dtype=np.float32)
 
+    # -------------------------
+    # safety check (before clip)
+    # -------------------------
+    n_dim = I.shape[-1]
+    assert 0 <= dim_start < dim_end <= n_dim, (
+        f"Invalid clip range: [{dim_start}, {dim_end}) for n_dim={n_dim}"
+    )
+
+    # -------------------------
+    # reflectance computation
+    # -------------------------
     epsilon = 1e-6
     numerator   = (I - D)
     denominator = np.clip(W - D, epsilon, np.inf)
@@ -57,7 +80,14 @@ def load(folder: str, sample_name: str) -> tuple[np.ndarray, np.ndarray]:
 
     assert np.all(np.isfinite(R)), "Output R contains NaN or Inf."
 
-    return R, wave
+    # -------------------------
+    # dimension clip (index-based)
+    # -------------------------
+    I = I[..., dim_start:dim_end]
+    R = R[..., dim_start:dim_end]
+    wave = wave[dim_start:dim_end]
+
+    return I, R, wave
 
 
 def load_sample_list(sample_name_path: str):
@@ -71,7 +101,7 @@ def load_sample_list(sample_name_path: str):
 
 def return_binary_data(data: np.ndarray):
     """
-    L2ノルムマップ + Otsu で木材領域マスクを生成。
+    強度（I）の L2ノルムマップ + Otsu で木材領域マスクを生成。
     """
     norm_map: np.ndarray = np.linalg.norm(data, axis=2)
     norm_map = np.nan_to_num(norm_map, nan=0.0, posinf=0.0, neginf=0.0)
@@ -92,7 +122,7 @@ def _save_tight_image(
     width_inch: float = 8.0,
     add_cbar: bool = True,
     cbar_label: Optional[str] = None,
-    cbar_fontsize: int = 30,
+    cbar_fontsize: int = 20,
     cbar_ticks: Optional[List[float]] = None,
     cbar_fraction: float = 0.1,
     cbar_pad: float = 0.02,
@@ -130,9 +160,9 @@ def _save_tight_image(
         vmax = float(np.nanmax(img))
 
     if img.ndim == 2:
-        im = main_ax.imshow(img, cmap=cmap, vmin=vmin, vmax=vmax)
+        im = main_ax.imshow(img[:, ::-1], cmap=cmap, vmin=vmin, vmax=vmax)
     else:
-        im = main_ax.imshow(img)
+        im = main_ax.imshow(img[:, ::-1])
 
     main_ax.set_axis_off()
 
@@ -154,32 +184,91 @@ def return_data_list_and_mask_list(
     width_inch: float = 8.0,
 ) -> Tuple[List[np.ndarray], List[np.ndarray]]:
     """
-    各サンプルについて R と mask を生成し、norm_map/mask画像・mask.npy保存。
+    各サンプルについて **反射率データ R** と **木材領域マスク mask** を生成して返す。
+
+    処理の流れ
+    ----------
+    1. `load()` を用いて各サンプルから
+       - 強度データ I (H, W, C)
+       - 反射率データ R (H, W, C)
+       - 波長ベクトル wave
+       を読み込む。
+    2. 返り値としては **反射率データ R のみ**を `data_list` に格納する。
+    3. 木材領域マスクの生成および可視化に関しては、
+       **反射率 R ではなく、強度データ I を用いて行う**。
+       具体的には：
+         - I に対して L2 ノルムマップを計算
+         - ノルムマップに Otsu の手法を適用して二値化
+    4. 以下のファイルを保存する：
+         - ノルムマップ画像（png）
+         - 二値マスク画像（png）
+         - 二値マスク配列（npy）
+         - 波長ベクトル（npy, 初回のみ）
+    5. 返り値は **反射率データのリスト** と **二値マスクのリスト**
+
+    Notes
+    -----
+    - 二値化およびノルム画像作成に「強度 I」を用いるのは、
+      センサ由来のラインアーティファクトや
+      反射率正規化 (R=(I-D)/(W-D)) による不安定性が
+      マスク生成に悪影響を与えるのを避けるためである。
+    - 反射率 R は以降のスペクトル解析・学習用途のために
+      そのまま保持される。
+
+    Parameters
+    ----------
+    data_folder : str
+        データの格納フォルダ名（train / val / test 等）。
+    sample_name_list : List[str]
+        サンプル名のリスト。
+    width_inch : float, optional
+        保存画像の横幅（インチ指定）。
+
+    Returns
+    -------
+    data_list : List[np.ndarray]
+        各サンプルの反射率データ R (H, W, C) のリスト。
+    masks : List[np.ndarray]
+        各サンプルの木材領域二値マスク (H, W) のリスト。
     """
     data_list: List[np.ndarray] = []
     masks: List[np.ndarray] = []
 
     wave = None
-    for name in sample_name_list:
-        data, wave = load(folder=data_folder, sample_name=name)
-        assert isinstance(data, np.ndarray) and data.ndim == 3, f"Invalid shape for data {name}"
-        data_list.append(data)
+    intensity_list: List[np.ndarray] = []
 
+    # ----------------------------
+    # データ読み込み
+    # ----------------------------
+    for name in sample_name_list:
+        I, R, wave = load(folder=data_folder, sample_name=name)
+
+        assert isinstance(R, np.ndarray) and R.ndim == 3, f"Invalid shape for data {name}"
+        assert isinstance(I, np.ndarray) and I.ndim == 3, f"Invalid shape for intensity {name}"
+
+        data_list.append(R)
+        intensity_list.append(I)
+
+    # 波長保存（1回だけ）
     if wave is not None:
         SPECTRA_DIR.mkdir(parents=True, exist_ok=True)
         np.save(SPECTRA_DIR / "wavenumber.npy", wave)
 
-    for name, data in zip(sample_name_list, data_list):
-        norm, label = return_binary_data(data)
+    # ----------------------------
+    # マスク生成・保存
+    # ----------------------------
+    for name, I in zip(sample_name_list, intensity_list):
+        # NOTE: マスク生成は「強度 I」に対して行う
+        norm_map, label = return_binary_data(I)
 
         _save_tight_image(
-            norm,
-            out_path=NORM_MAP_DIR / f"{name}_norm_map.png",
+            norm_map,
+            out_path=NORM_MAP_DIR / f"{name}_I_norm_map.png",
             cmap="jet",
-            vmin=0,
-            vmax=16,
+            vmin=100000,
+            vmax=400000,
             width_inch=width_inch,
-            add_cbar=True,
+            add_cbar=False,
         )
 
         _save_tight_image(
@@ -191,10 +280,13 @@ def return_data_list_and_mask_list(
             width_inch=width_inch,
             add_cbar=True,
         )
+        
+        # 反射率のノルム画像も可視化したい. ただし二値化で0だった部分のRは0に置換すること
 
         mask_dir = get_mask_dir(data_folder)
         mask_dir.mkdir(parents=True, exist_ok=True)
         np.save(mask_dir / f"{name}_mask.npy", label)
+
         masks.append(label)
 
     return data_list, masks

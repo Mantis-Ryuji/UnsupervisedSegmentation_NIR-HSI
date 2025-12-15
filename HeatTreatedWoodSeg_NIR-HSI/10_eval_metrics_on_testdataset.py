@@ -21,7 +21,6 @@ from src.evaluation.silhouette import (
     save_json,
     build_diff_report,
 )
-from src.evaluation.label_matching import verify_label_matching
 from src.evaluation.angles import (
     load_centroids,
     angle_matrix,
@@ -87,7 +86,7 @@ REPORT_PATHS = {
 # main
 # =========================================================
 def main() -> None:
-    print("========== [1/10] 設定ファイル読込 ==========")
+    print("========== [1/9] 設定ファイル読込 ==========")
     cfg = load_config()
 
     # report セクションは dataclass / dict のどちらでも動くようにしておく
@@ -122,7 +121,7 @@ def main() -> None:
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
     # --- データ読込 ---
-    print("\n========== [2/10] データ読込 ==========")
+    print("\n========== [2/9] データ読込 ==========")
     X_ref_snv            = np.load(INPUT_PATHS["test_ref_snv"])
     X_labels_ref_snv_ckm = np.load(INPUT_PATHS["labels_ref_snv_ckm"])
     X_latent             = np.load(INPUT_PATHS["test_latent"])
@@ -134,12 +133,8 @@ def main() -> None:
     print(f"  labels_ref_snv_ckm: {np.unique(X_labels_ref_snv_ckm).size} clusters")
     print(f"  labels_latent_ckm : {np.unique(X_labels_latent_ckm).size} clusters")
 
-    # --- ラベル整合の検証 ---
-    print("\n========== [3/10] ラベル整合の検証 ==========")
-    verify_label_matching(X_labels_ref_snv_ckm, X_labels_latent_ckm)
-
     # --- Silhouette 計算 ---
-    print("\n========== [4/10] Silhouette サンプル計算 (GPU) ==========")
+    print("\n========== [3/9] Silhouette サンプル計算 (GPU) ==========")
     print("→ baseline (reflectance_snv)")
     silhouette_ref_snv_ckm = silhouette_samples_cosine_gpu(
         X_ref_snv,
@@ -167,7 +162,7 @@ def main() -> None:
     )
 
     # --- 可視化（Silhouette） ---
-    print("\n========== [5/10] Silhouette 可視化 ==========")
+    print("\n========== [4/9] Silhouette 可視化 ==========")
     plot_silhouette_samples(
         silhouette_ref_snv_ckm,
         X_labels_ref_snv_ckm,
@@ -185,7 +180,7 @@ def main() -> None:
     print(f"  Saved: {IMG_PATHS['silhouette_latent_ckm']}")
 
     # --- 詳細レポート ---
-    print("\n========== [6/10] 詳細レポート生成 ==========")
+    print("\n========== [5/9] 詳細レポート生成 ==========")
     report_ref_snv_ckm = compute_silhouette_report(
         silhouette_ref_snv_ckm,
         X_labels_ref_snv_ckm,
@@ -209,12 +204,12 @@ def main() -> None:
     save_report(report_latent_ckm, REPORT_PATHS["silhouette_latent_ckm"])
 
     # --- 差分レポート ---
-    print("\n========== [7/10] 差分レポート生成 ==========")
+    print("\n========== [6/9] 差分レポート生成 ==========")
     diff = build_diff_report(report_ref_snv_ckm, report_latent_ckm)
     save_json(diff, REPORT_PATHS["diff_ref_vs_latent"])
 
     # --- 幾何的検証（中心角度） ---
-    print("\n========== [8/10] 角度マージン検証：行列生成 ==========")
+    print("\n========== [7/9] 角度マージン検証：行列生成 ==========")
     C_ref = load_centroids(CENTROID_PATHS["ref_snv_matched"])
     C_lat = load_centroids(CENTROID_PATHS["latent_ckm"])
     Theta_ref = angle_matrix(C_ref)
@@ -228,7 +223,7 @@ def main() -> None:
     )
 
     # --- 幾何的検証（可視化） ---
-    print("\n========== [9/10] 角度マージン検証：可視化 ==========")
+    print("\n========== [8/9] 角度マージン検証：可視化 ==========")
     plot_angle_heatmap(Theta_ref,   IMG_PATHS["angle_heat_ref"])
     plot_angle_heatmap(Theta_lat,   IMG_PATHS["angle_heat_latent"])
     plot_angle_diff_heatmap(
@@ -249,7 +244,7 @@ def main() -> None:
     plot_mds_layout_from_angles(Theta_ref, IMG_PATHS["mds_ref"], seed=seed)
     plot_mds_layout_from_angles(Theta_lat, IMG_PATHS["mds_latent"], seed=seed)
 
-    print("\n========== [10/10] ✅ ALL DONE ==========")
+    print("\n========== [9/9] ✅ ALL DONE ==========")
 
 
 if __name__ == "__main__":

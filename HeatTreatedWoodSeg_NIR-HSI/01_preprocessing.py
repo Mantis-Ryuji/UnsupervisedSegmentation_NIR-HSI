@@ -51,7 +51,8 @@ def main() -> None:
                 data_folder=split,
                 data_list=data_list,
                 masks=masks,
-                seed=seed
+                seed=seed,
+                ratio=0.5
             )
 
         # --- full dataset 生成 ---

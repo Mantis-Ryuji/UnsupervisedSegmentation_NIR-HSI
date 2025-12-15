@@ -388,7 +388,7 @@ def plot_spectra_2nd_derive(
             label=f"class{int(uniq[idx])}",
         )
     ax.set_ylim(-2e-5, 2e-5)
-    ax.set_xlim(10000, 4100)  # 右肩上がり表示
+    ax.set_xlim(10000, 4500)  # 右肩上がり表示
     ax.xaxis.set_major_locator(MultipleLocator(500))
     ax.xaxis.set_minor_locator(MultipleLocator(100))
     ax.yaxis.set_major_locator(MultipleLocator(1e-5))

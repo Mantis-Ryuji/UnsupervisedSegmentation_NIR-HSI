@@ -1,0 +1,7 @@
+{
+  "k_opt": 17,
+  "device": "cuda",
+  "random_state": 42,
+  "chunk": 5000000,
+  "k_max": 50
+}

@@ -102,11 +102,11 @@ def main() -> None:
     
     # =====================================================
     # Silhouette による最終 k_opt の決定
-    #   - k_elbow ± 3 の範囲（[2, k_max] にクリップ）で
+    #   - k_elbow ± 5 の範囲（[2, k_max] にクリップ）で
     #     cosine silhouette を最大化する k を採用
     # =====================================================
     k_candidates = [
-        k for k in range(k_elbow - 3, k_elbow + 4)
+        k for k in range(k_elbow - 5, k_elbow + 6)
         if 2 <= k <= k_max
     ]
 

@@ -7,7 +7,7 @@ model:
   # Encoder (Transformer)
   # -------------------------
   # 入力系列長（波長チャンネル数）。データ次元に必ず一致させる
-  seq_len: 256
+  seq_len: 210
   # モデル幅（埋め込み次元）。大きいほど表現力↑だがVRAM消費↑
   d_model: 512
   # マルチヘッド数。d_modelはnheadで割り切れる必要あり
@@ -22,12 +22,12 @@ model:
   latent_dim: 16
 
   # -------------------------
-  # Mask 設定（ブロック単位の可視/マスク）
+  # Mask 設定（パッチ単位の可視/マスク）
   # -------------------------
   # シーケンスを n_patches 等分し、そのうち n_mask 数のパッチをマスク
   # ※ seq_len は n_patches で割り切れる必要がある
-  n_patches: 32
-  n_mask: 24
+  n_patches: 30
+  n_mask: 21 # 70%
 
 # -------------------------
 # 学習設定
@@ -42,14 +42,14 @@ training:
   persistent_workers: true # DataLoaderワーカーを永続化し高速化
 
   # Optimizer / AdamW
-  base_lr: 0.001           # 学習率（スケジューラ基準）
+  base_lr: 2.5e-4            # 学習率（スケジューラ基準）
   weight_decay: 0.05       # AdamW正則化。bias/norm/cls/pos_emb はコード側で除外
   betas: [0.9, 0.95]       # 慣習的にMAE系でよく使う値
   eps: 1.0e-8              # 数値安定用イプシロン
 
   # Scheduler (warmup + cosine annealing)
-  warmup_epochs: 3        # 学習初期のウォームアップ。
-  min_lr_scale: 0.01       # 最終LRは base_lr×0.01。
+  warmup_epochs: 1        # 学習初期のウォームアップ。
+  min_lr_scale: 0.04      # 最終LRは base_lr×0.04。
  
   epochs: 100              # 最大エポック数（早停にかからなければここまで回す）
   early_stop_patience: 10  # val改善が途切れた連続エポック数で早停
