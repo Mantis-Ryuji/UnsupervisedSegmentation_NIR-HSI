@@ -44,51 +44,6 @@ def angle_matrix(C: np.ndarray) -> np.ndarray:
     return np.arccos(S)
 
 
-def plot_angle_heatmap(theta_rad: np.ndarray, save_path: str | Path) -> None:
-    """
-    クラスタ間角度行列（radian）を degree に変換し、範囲 [0,180] でヒートマップ保存。
-    """
-    theta_deg = np.degrees(theta_rad)
-    fig, ax = plt.subplots(figsize=(6.5, 5.5), dpi=300)
-    im = ax.imshow(theta_deg, vmin=0, vmax=180, interpolation="nearest")
-    cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label("Inter-cluster angle (°)")
-    ax.set_xlabel("Cluster j")
-    ax.set_ylabel("Cluster i")
-    ax.set_xticks(range(theta_deg.shape[1]))
-    ax.set_yticks(range(theta_deg.shape[0]))
-    plt.tight_layout()
-    p = Path(save_path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(p, dpi=300)
-    plt.close(fig)
-
-
-def plot_angle_diff_heatmap(
-    Theta_ref: np.ndarray,
-    Theta_lat: np.ndarray,
-    save_path: str | Path
-) -> None:
-    """
-    2つの角度行列（ref, latent）の差分（degree）をヒートマップとして可視化。
-    """
-    diff_deg = np.degrees(Theta_lat) - np.degrees(Theta_ref)
-    v = float(np.max(np.abs(diff_deg)))
-    fig, ax = plt.subplots(figsize=(6.5, 5.5), dpi=300)
-    im = ax.imshow(diff_deg, vmin=-v, vmax=v, cmap="coolwarm", interpolation="nearest")
-    cbar = plt.colorbar(im, ax=ax)
-    cbar.set_label("Δ angle (°)  [Latent - Ref(SNV)]")
-    ax.set_xlabel("Cluster j")
-    ax.set_ylabel("Cluster i")
-    ax.set_xticks(range(diff_deg.shape[1]))
-    ax.set_yticks(range(diff_deg.shape[0]))
-    plt.tight_layout()
-    p = Path(save_path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(p, dpi=300)
-    plt.close(fig)
-
-
 def plot_angle_kde_comparison(
     theta_ref_rad: np.ndarray,
     theta_lat_rad: np.ndarray,

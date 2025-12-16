@@ -1,16 +1,10 @@
 from .silhouette import (
-    plot_silhouette_samples,
-    compute_silhouette_report,
-    build_diff_report,
-    save_report,
-    save_json,
+    plot_silhouette_bar,
 )
 
 from .angles import (
     load_centroids,
     angle_matrix,
-    plot_angle_heatmap,
-    plot_angle_diff_heatmap,
     plot_angle_kde_comparison,
     plot_angle_scatter_comparison,
     plot_mds_layout_from_angles,
@@ -25,16 +19,10 @@ from .label_matching import (
 )
 
 __all__ = [
-    "plot_silhouette_samples",
-    "compute_silhouette_report",
-    "build_diff_report",
-    "save_report",
-    "save_json",
+    "plot_silhouette_bar",
     
     "load_centroids",
     "angle_matrix",
-    "plot_angle_heatmap",
-    "plot_angle_diff_heatmap",
     "plot_angle_kde_comparison",
     "plot_angle_scatter_comparison",
     "plot_mds_layout_from_angles",

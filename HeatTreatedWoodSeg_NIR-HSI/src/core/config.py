@@ -78,18 +78,6 @@ class TestConfig:
     """
     weights_path: Optional[str] = None
 
-
-@dataclass
-class ReportConfig:
-    """
-    report セクション用の設定コンテナ。
-    """
-    n_boot: int = 5000
-    seed: int = 42
-    data_chunk: int = 5_000_000
-    boot_chunk: int = 500
-
-
 @dataclass
 class ProjectConfig:
     """
@@ -103,7 +91,6 @@ class ProjectConfig:
     training: TrainingConfig
     clustering: ClusteringConfig
     test: TestConfig
-    report: ReportConfig
 
     def get_section(self, name: str, default: Any = None) -> Any:
         """
@@ -176,16 +163,6 @@ def _as_test_cfg(d: Mapping[str, Any]) -> TestConfig:
     return TestConfig(weights_path=weights)
 
 
-def _as_report_cfg(d: Mapping[str, Any], *, default_seed: int) -> ReportConfig:
-    base = ReportConfig(seed=default_seed)
-    return ReportConfig(
-        n_boot=int(d.get("n_boot", base.n_boot)),
-        seed=int(d.get("seed", base.seed)),
-        data_chunk=int(d.get("data_chunk", base.data_chunk)),
-        boot_chunk=int(d.get("boot_chunk", base.boot_chunk)),
-    )
-
-
 # =========================================================
 # 公開 API：config.yaml の読み込み
 # =========================================================
@@ -210,13 +187,11 @@ def load_config(path: str | Path | None = None) -> ProjectConfig:
     training_dict   = data.get("training", {}) or {}
     clustering_dict = data.get("clustering", {}) or {}
     test_dict       = data.get("test", {}) or {}
-    report_dict     = data.get("report", {}) or {}
 
     model_cfg      = _as_model_cfg(model_dict)
     training_cfg   = _as_training_cfg(training_dict)
     clustering_cfg = _as_clustering_cfg(clustering_dict)
     test_cfg       = _as_test_cfg(test_dict)
-    report_cfg     = _as_report_cfg(report_dict, default_seed=training_cfg.seed)
 
     return ProjectConfig(
         raw=data,
@@ -224,5 +199,4 @@ def load_config(path: str | Path | None = None) -> ProjectConfig:
         training=training_cfg,
         clustering=clustering_cfg,
         test=test_cfg,
-        report=report_cfg,
     )

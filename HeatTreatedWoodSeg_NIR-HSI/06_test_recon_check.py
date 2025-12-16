@@ -2,8 +2,8 @@ import os
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 from pathlib import Path
-
 from dataclasses import asdict
+
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -19,7 +19,6 @@ from src.core.paths import (
     IMAGES_DIR,
     get_reflectance_path,
 )
-from src.preprocessing import trim_rim_by_knn_cosine_gpu
 from src.viz.recon import plot_recon_grid
 
 
@@ -29,7 +28,7 @@ from src.viz.recon import plot_recon_grid
 TEST_SNV_PATH = get_reflectance_path("test", snv=True, downsampled=False)
 
 SPECTRA_IMG_DIR = IMAGES_DIR / "spectra"
-RECON_FIG_PATH = SPECTRA_IMG_DIR / "recon_spectra.png"
+RECON_FIG_PATH_TMPL = SPECTRA_IMG_DIR / "recon_spectra_{i}.png"
 
 
 # =========================================================
@@ -42,7 +41,7 @@ def main() -> None:
     cfg = load_config()
     tr_cfg = cfg.training
     te_cfg = cfg.test
-    
+
     set_global_seed(tr_cfg.seed)
 
     batch_size = tr_cfg.batch_size
@@ -63,10 +62,8 @@ def main() -> None:
         ratio=1e-2,
         seed=tr_cfg.seed,
     )
-    # 外れ値・縁トリム
-    test_down_trim = trim_rim_by_knn_cosine_gpu(test_down)
 
-    test_dataset = TensorDataset(torch.as_tensor(test_down_trim, dtype=torch.float32))
+    test_dataset = TensorDataset(torch.as_tensor(test_down, dtype=torch.float32))
     test_loader = DataLoader(
         test_dataset,
         batch_size=batch_size,
@@ -86,29 +83,33 @@ def main() -> None:
 
     model.load_state_dict(state, strict=True)
     model.to(device)
+    model.eval()
 
-    # --- 1バッチだけ再構成して可視化 ---
-    x_origin_list = []
-    x_recon_list = []
-    visible_mask_list = []
+    # --- 5バッチ再構成して可視化（各バッチ1枚保存） ---
+    n_batches_to_plot = 5
 
     with torch.inference_mode():
-        for batch in test_loader:
+        for i, batch in enumerate(test_loader):
+            if i >= n_batches_to_plot:
+                break
+
             x = batch[0].to(device, non_blocking=True)
             x_recon, z, visible_mask = model(x)
-            x_origin_list.append(x)
-            x_recon_list.append(x_recon)
-            visible_mask_list.append(visible_mask)
-            break  # 1バッチのみ
 
-    plot_recon_grid(
-        x_origin_list,
-        x_recon_list,
-        visible_mask_list,
-        n_blocks=cfg.model.n_patches,
-    )
-    plt.savefig(RECON_FIG_PATH, dpi=300)
-    
+            plot_recon_grid(
+                [x],
+                [x_recon],
+                [visible_mask],
+                n_blocks=cfg.model.n_patches,
+                seed=tr_cfg.seed+i,
+            )
+
+            out_path = Path(str(RECON_FIG_PATH_TMPL).format(i=i))
+            plt.savefig(out_path, dpi=300)
+            plt.close()
+
+            print(f"saved: {out_path}")
+
     print("✅ ALL DONE")
 
 

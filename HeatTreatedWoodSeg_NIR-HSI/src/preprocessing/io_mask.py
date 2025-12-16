@@ -7,9 +7,9 @@ from typing import List, Tuple, Optional
 import spectral.io.envi as envi
 from tqdm import tqdm
 import numpy as np
-from skimage.filters import threshold_otsu
 import matplotlib.pyplot as plt
-
+from skimage.filters import threshold_otsu
+from scipy.ndimage import distance_transform_edt
 from chemomae.preprocessing import SNVScaler
 
 from ..core.paths import (
@@ -99,15 +99,48 @@ def load_sample_list(sample_name_path: str):
     return sample_name_list
 
 
-def return_binary_data(data: np.ndarray):
+def return_binary_data(
+    data: np.ndarray,
+    *,
+    margin_px: int = 3,
+):
     """
-    強度（I）の L2ノルムマップ + Otsu で木材領域マスクを生成。
+    強度（I）の L2 ノルム + Otsu で木材領域を粗く推定し、
+    そのマスクの「境界から margin_px 以上内側」のみを残す。
+
+    形態学（opening / closing / erosion）は一切使用しない。
+    境界ピクセルのスペクトル混合を除外するための
+    距離マージンベースのマスク生成。
+
+    Parameters
+    ----------
+    data : np.ndarray
+        強度 I (H, W, C)
+    margin_px : int
+        境界から何ピクセル内側を採用するか（縁汚染を捨てる幅）
+
+    Returns
+    -------
+    norm_map : np.ndarray
+        L2 ノルムマップ (H, W)
+    binary_data : np.ndarray
+        内側マージン適用後の木材マスク (H, W), dtype=bool
     """
-    norm_map: np.ndarray = np.linalg.norm(data, axis=2)
+    if margin_px < 0:
+        raise ValueError("margin_px must be >= 0")
+
+    # L2 ノルム
+    norm_map = np.linalg.norm(data, axis=2)
     norm_map = np.nan_to_num(norm_map, nan=0.0, posinf=0.0, neginf=0.0)
 
+    # Otsu による粗マスク
     thresh = threshold_otsu(norm_map)
     binary_data = norm_map > thresh
+
+    # 距離マージンで縁を削除
+    if margin_px > 0:
+        dist = distance_transform_edt(binary_data)
+        binary_data = dist >= margin_px
 
     return norm_map, binary_data
 

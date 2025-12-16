@@ -52,7 +52,6 @@ def main() -> None:
                 data_list=data_list,
                 masks=masks,
                 seed=seed,
-                ratio=0.5
             )
 
         # --- full dataset 生成 ---
