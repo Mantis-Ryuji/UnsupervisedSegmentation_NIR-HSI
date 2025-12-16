@@ -3,7 +3,7 @@ os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 from pathlib import Path
 from dataclasses import asdict
-
+import itertools
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
@@ -59,7 +59,7 @@ def main() -> None:
     # FPS で downsample
     test_down = cosine_fps_downsample(
         test_snv,
-        ratio=1e-2,
+        ratio=1e-3,
         seed=tr_cfg.seed,
     )
 
@@ -89,24 +89,24 @@ def main() -> None:
     n_batches_to_plot = 5
 
     with torch.inference_mode():
-        for i, batch in enumerate(test_loader):
-            if i >= n_batches_to_plot:
-                break
-
+        for i, batch in enumerate(itertools.islice(itertools.cycle(test_loader), n_batches_to_plot)):
             x = batch[0].to(device, non_blocking=True)
             x_recon, z, visible_mask = model(x)
+
+            plt.close("all")
+            plt.figure()
 
             plot_recon_grid(
                 [x],
                 [x_recon],
                 [visible_mask],
                 n_blocks=cfg.model.n_patches,
-                seed=tr_cfg.seed+i,
+                seed=tr_cfg.seed + i,
             )
 
             out_path = Path(str(RECON_FIG_PATH_TMPL).format(i=i))
-            plt.savefig(out_path, dpi=300)
-            plt.close()
+            plt.savefig(out_path, dpi=300, bbox_inches="tight")
+            plt.close("all")
 
             print(f"saved: {out_path}")
 
