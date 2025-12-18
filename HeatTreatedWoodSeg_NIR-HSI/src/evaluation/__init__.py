@@ -18,6 +18,10 @@ from .label_matching import (
     verify_label_matching
 )
 
+from .spatial_consistency_score import (
+    compute_scs
+)
+
 __all__ = [
     "plot_silhouette_bar",
     
@@ -31,5 +35,7 @@ __all__ = [
     "apply_map",
     "plot_confusion_heatmap",
     "save_aligned_ref_centroids",
-    "verify_label_matching"
+    "verify_label_matching",
+    
+    "compute_scs"
 ]

@@ -38,7 +38,7 @@ CENTROID_UNMATCHED_PATH = RUNS_DIR / "ref_snv_ckm_unmatched.pt"
 CENTROID_MATCHED_PATH   = RUNS_DIR / "ref_snv_ckm_matched.pt"
 
 IMG_LOG_DIR = IMAGES_DIR / "logs"
-CONF_HEATMAP_PNG = IMG_LOG_DIR / "label_map_confusion_trainval.png"
+CONF_HEATMAP_PNG = IMG_LOG_DIR / "label_map_confusion_train.png"
 
 
 # レポート系は runs/clustering_report/ 配下
@@ -76,16 +76,17 @@ def _name_list_path(split: str) -> Path:
 # =========================================================
 # ユーティリティ
 # =========================================================
-def _load_concat_float32(train_path: Path, val_path: Path) -> torch.Tensor:
+def _load_float32(path: Path) -> torch.Tensor:
+    """Load a numpy array as float32 torch.Tensor (CPU).
+
+    Notes
+    -----
+    - mmap_mode='r' で読み込み、必要なら float32 にキャストする。
     """
-    train/val を連結して float32 Tensor (CPU) で返す（学習は内部で device へ）。
-    """
-    tr = np.load(train_path, mmap_mode="r")
-    va = np.load(val_path, mmap_mode="r")
-    X_np = np.concatenate([tr, va], axis=0)
-    if X_np.dtype != np.float32:
-        X_np = X_np.astype(np.float32, copy=False)
-    return torch.from_numpy(X_np)
+    x = np.load(path, mmap_mode="r")
+    if x.dtype != np.float32:
+        x = x.astype(np.float32, copy=False)
+    return torch.from_numpy(x)
 
 
 @torch.no_grad()
@@ -125,13 +126,10 @@ def main() -> None:
         option = json.load(f)
     k_opt = int(option["k_opt"])
 
-    # --- ref_snv 空間で CKM を学習（train+val） ---
-    X_trainval = _load_concat_float32(
-        _reflectance_snv_path("train"),
-        _reflectance_snv_path("val"),
-    )
+    # --- ref_snv 空間で CKM を学習（train のみ） ---
+    X_train = _load_float32(_reflectance_snv_path("train"))
     ckm = CosineKMeans(n_components=k_opt, device=device, random_state=seed)
-    ckm.fit(X_trainval, chunk=chunk)
+    ckm.fit(X_train, chunk=chunk)
     ckm.save_centroids(CENTROID_UNMATCHED_PATH)
 
     # --- baseline 側 (ref_snv) のラベル付け ---
@@ -147,29 +145,24 @@ def main() -> None:
                 "先に ChemoMAE latent へ CKM を適用し、cluster_labels_latent_ckm.npy を生成してください。"
             )
 
-    # --- train+val でラベルマップ推定 (Hungarian) ---
+    # --- train のみでラベルマップ推定 (Hungarian) ---
     y_ref_train = np.load(_ref_label_path("train"))
-    y_ref_val   = np.load(_ref_label_path("val"))
-    y_ref_tv    = np.concatenate([y_ref_train, y_ref_val])
-
     y_lat_train = np.load(_latent_label_path("train"))
-    y_lat_val   = np.load(_latent_label_path("val"))
-    y_lat_tv    = np.concatenate([y_lat_train, y_lat_val])
 
-    label_map, confmat_tv = compute_label_map(y_ref_tv, y_lat_tv)
+    label_map, confmat_train = compute_label_map(y_ref_train, y_lat_train)
 
     # --- ラベルマップ + 混同行列を JSON 保存 ---
     MAP_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
     with MAP_JSON_PATH.open("w", encoding="utf-8") as f:
         json.dump(
-            {"map": label_map, "confusion_trainval": confmat_tv.tolist()},
+            {"map": label_map, "confusion_train": confmat_train.tolist()},
             f,
             ensure_ascii=False,
             indent=2,
         )
 
     # --- 混同行列ヒートマップ（Hungarian 対応セルを枠で強調） ---
-    plot_confusion_heatmap(confmat_tv, label_map, CONF_HEATMAP_PNG)
+    plot_confusion_heatmap(confmat_train, label_map, CONF_HEATMAP_PNG)
 
     # --- ref の centroid を latent 順に整列して保存 ---
     save_aligned_ref_centroids(

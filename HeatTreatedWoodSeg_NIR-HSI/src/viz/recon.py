@@ -52,7 +52,7 @@ def plot_recon_grid(
         alpha=0.5,
         edgecolor="dimgray",
         linewidth=1.0,
-        label="Masked block",
+        label="Masked patch",
     )
 
     block_size = L // n_blocks

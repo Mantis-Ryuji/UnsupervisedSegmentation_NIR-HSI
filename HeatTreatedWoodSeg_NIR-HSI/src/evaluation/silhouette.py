@@ -61,58 +61,105 @@ def _cluster_mean_std(scores: np.ndarray, cluster_ids: np.ndarray) -> tuple[floa
 
 def plot_silhouette_bar(
     *,
-    ref_scores: ArrayLike,
-    ref_cluster_ids: ArrayLike,
-    latent_scores: ArrayLike,
-    latent_cluster_ids: ArrayLike,
+    ref_scores: dict[str, ArrayLike],
+    ref_cluster_ids: dict[str, ArrayLike],
+    latent_scores: dict[str, ArrayLike],
+    latent_cluster_ids: dict[str, ArrayLike],
     save_path: Union[str, Path],
+    splits: Tuple[str, str, str] = ("train", "val", "test"),
     labels: Tuple[str, str] = ("ref_snv", "latent"),
     colors: Tuple[str, str] = ("tab:blue", "tab:orange"),
-    ylabel: str = "Silhouette score",
+    ylabel: str = "Silhouette score (cosine)",
     dpi: int = 200,
 ) -> None:
     """
-    mean を棒の上端、std をエラーバーとする棒グラフを描画。
-    ここで std は「クラスタごとの平均シルエット」のばらつき。
+    Split-wise silhouette bar chart.
 
-    表示テキストはエラーバー上端に mean±std (.3g)。
+    Parameters
+    ----------
+    ref_scores, latent_scores : dict[str, ArrayLike]
+        各 split の **各点シルエット**（s_i）の 1D 配列。
+        例: {"train": s_train, "val": s_val, "test": s_test}
+    ref_cluster_ids, latent_cluster_ids : dict[str, ArrayLike]
+        各 split の **各点クラスタID**（1D int 配列）。
+        std は「クラスタ平均シルエット {mean_k} の split 内ばらつき」で計算する。
+    splits : tuple[str, str, str]
+        描画順。デフォルトは ("train","val","test")。
+
+    Notes
+    -----
+    - 棒は [-1, 1] の軸で表示（bottom=-1 からの高さで描画）。
+    - テキストはエラーバー上端に mean±std (.3g)。
     """
-    ref_scores = _to_1d(ref_scores, "ref_scores")
-    latent_scores = _to_1d(latent_scores, "latent_scores")
-    ref_cluster_ids = _to_1d_int(ref_cluster_ids, "ref_cluster_ids")
-    latent_cluster_ids = _to_1d_int(latent_cluster_ids, "latent_cluster_ids")
+    # ---- validate splits presence ----
+    for sp in splits:
+        if sp not in ref_scores or sp not in ref_cluster_ids:
+            raise KeyError(f"Missing split '{sp}' in ref_scores/ref_cluster_ids")
+        if sp not in latent_scores or sp not in latent_cluster_ids:
+            raise KeyError(f"Missing split '{sp}' in latent_scores/latent_cluster_ids")
 
-    ref_mean, ref_std = _cluster_mean_std(ref_scores, ref_cluster_ids)
-    lat_mean, lat_std = _cluster_mean_std(latent_scores, latent_cluster_ids)
+    # ---- compute mean/std per split ----
+    ref_means, ref_stds = [], []
+    lat_means, lat_stds = [], []
+    for sp in splits:
+        rs = _to_1d(ref_scores[sp], f"ref_scores[{sp}]")
+        rc = _to_1d_int(ref_cluster_ids[sp], f"ref_cluster_ids[{sp}]")
+        ls = _to_1d(latent_scores[sp], f"latent_scores[{sp}]")
+        lc = _to_1d_int(latent_cluster_ids[sp], f"latent_cluster_ids[{sp}]")
 
-    means = np.array([ref_mean, lat_mean], dtype=float)
-    stds  = np.array([ref_std,  lat_std ], dtype=float)
+        rm, rstd = _cluster_mean_std(rs, rc)
+        lm, lstd = _cluster_mean_std(ls, lc)
 
-    x = np.arange(2)
+        ref_means.append(rm); ref_stds.append(rstd)
+        lat_means.append(lm); lat_stds.append(lstd)
 
-    fig, ax = plt.subplots(figsize=(4, 4), dpi=dpi)
+    ref_means = np.asarray(ref_means, dtype=float)
+    ref_stds  = np.asarray(ref_stds, dtype=float)
+    lat_means = np.asarray(lat_means, dtype=float)
+    lat_stds  = np.asarray(lat_stds, dtype=float)
+
+    # ---- plot ----
+    n = len(splits)
+    x = np.arange(n, dtype=float)
+    width = 0.36
+
+    fig, ax = plt.subplots(figsize=(6.2, 4.0), dpi=dpi)
 
     bottom = -1.0
-    heights = means - bottom  # = means + 1
+    ref_heights = ref_means - bottom
+    lat_heights = lat_means - bottom
 
-    bars = ax.bar(
-        x,
-        heights,
+    bars_ref = ax.bar(
+        x - width / 2,
+        ref_heights,
         bottom=bottom,
-        yerr=stds,
+        yerr=ref_stds,
         capsize=5,
-        width=0.6,
-        color=colors,
+        width=width,
+        color=colors[0],
         align="center",
+        label=labels[0],
+    )
+    bars_lat = ax.bar(
+        x + width / 2,
+        lat_heights,
+        bottom=bottom,
+        yerr=lat_stds,
+        capsize=5,
+        width=width,
+        color=colors[1],
+        align="center",
+        label=labels[1],
     )
 
     ax.set_xticks(x)
-    ax.set_xticklabels(labels)
+    ax.set_xticklabels(list(splits))
     ax.set_ylabel(ylabel)
     ax.set_ylim(-1.0, 1.0)
+    ax.legend()
 
-    # 注釈：エラーバー上端に mean±std
-    for rect, m, s in zip(bars, means, stds):
+    # annotations at errorbar top: mean±std
+    for rect, m, s in zip(bars_ref, ref_means, ref_stds):
         y = m + s
         ax.text(
             rect.get_x() + rect.get_width() / 2,
@@ -120,7 +167,18 @@ def plot_silhouette_bar(
             f"{m:.3g}±{s:.3g}",
             ha="center",
             va="bottom",
-            fontsize=10,
+            fontsize=9,
+            clip_on=False,
+        )
+    for rect, m, s in zip(bars_lat, lat_means, lat_stds):
+        y = m + s
+        ax.text(
+            rect.get_x() + rect.get_width() / 2,
+            y + 0.02,
+            f"{m:.3g}±{s:.3g}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
             clip_on=False,
         )
 

@@ -18,6 +18,8 @@ model:
   dim_feedforward: 2048
   # Dropout率。
   dropout: 0.1
+  # Decoderの層数
+  decoder_num_layers: 1
   # 潜在表現の次元数。Encoder出力を線形変換後L2正規化して使う
   latent_dim: 8
 
@@ -26,8 +28,8 @@ model:
   # -------------------------
   # シーケンスを n_patches 等分し、そのうち n_mask 数のパッチをマスク
   # ※ seq_len は n_patches で割り切れる必要がある
-  n_patches: 35
-  n_mask: 28 # 80%
+  n_patches: 15
+  n_mask: 12 # 80%
 
 # -------------------------
 # 学習設定
@@ -42,14 +44,14 @@ training:
   persistent_workers: true # DataLoaderワーカーを永続化し高速化
 
   # Optimizer / AdamW
-  base_lr: 2.5e-4          # 学習率（スケジューラ基準）
+  base_lr: 5e-4          # 学習率（スケジューラ基準）
   weight_decay: 1e-3       # AdamW正則化。bias/norm/cls/pos_emb はコード側で除外
   betas: [0.9, 0.95]       # 慣習的にMAE系でよく使う値
   eps: 1.0e-8              # 数値安定用イプシロン
 
   # Scheduler (warmup + cosine annealing)
   warmup_epochs: 1        # 学習初期のウォームアップ。
-  min_lr_scale: 0.04      # 最終LRは base_lr×0.04。
+  min_lr_scale: 0.02      # 最終LRは base_lr×0.02。
  
   epochs: 100              # 最大エポック数（早停にかからなければここまで回す）
   early_stop_patience: 10  # val改善が途切れた連続エポック数で早停
@@ -67,7 +69,7 @@ test:
 # -------------------------
 clustering:
   # エルボー法で探索する最大クラスタ数K。
-  k_max: 50
+  k_max: 100
   # ストリーミング処理時のチャンクサイズ（サンプル数）。
   # VRAM/RAMに合わせて調整。大きいほど高速だが負荷↑
   chunk: 5000000

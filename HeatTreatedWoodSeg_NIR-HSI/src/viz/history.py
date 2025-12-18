@@ -34,8 +34,8 @@ def plot_training_history(training_history, save_path=None, show=False):
     best_train = float(tr[best_idx])
     best_val   = float(va[best_idx])
 
-    # --- 目盛り（50の倍数）用の範囲を決定 ---
-    step = 10
+    # --- 目盛り用の範囲を決定 ---
+    step = 20
     xmin = int(np.floor(epochs.min() / step) * step)
     xmax = int(np.ceil (epochs.max() / step) * step)
 

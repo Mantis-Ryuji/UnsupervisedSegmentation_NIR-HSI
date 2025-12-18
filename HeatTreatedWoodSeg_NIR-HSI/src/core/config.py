@@ -29,6 +29,7 @@ class ModelConfig:
     num_layers: int = 8
     dim_feedforward: int = 2048
     dropout: float = 0.1
+    decoder_num_layers: int =2
 
     # -------------------------
     # Latent / Masking
@@ -116,6 +117,7 @@ def _as_model_cfg(d: Mapping[str, Any]) -> ModelConfig:
         num_layers=int(d.get("num_layers", base.num_layers)),
         dim_feedforward=int(d.get("dim_feedforward", base.dim_feedforward)),
         dropout=float(d.get("dropout", base.dropout)),
+        decoder_num_layers=float(d.get("decoder_num_layers", base.decoder_num_layers)),
         latent_dim=int(d.get("latent_dim", base.latent_dim)),
         n_patches=int(d.get("n_patches", base.n_patches)),
         n_mask=int(d.get("n_mask", base.n_mask)),

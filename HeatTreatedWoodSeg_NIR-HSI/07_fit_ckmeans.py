@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+import torch.nn.functional as F
 
 from chemomae.clustering import CosineKMeans, elbow_ckmeans, plot_elbow_ckm, silhouette_score_cosine_gpu
 from chemomae.utils.seed import set_global_seed
@@ -26,38 +27,74 @@ from src.core.paths import (
 # =========================================================
 LATENT_TRAIN_PATH = get_latent_path("train")
 LATENT_VAL_PATH   = get_latent_path("val")
+LATENT_TEST_PATH  = get_latent_path("test")
 
 IMG_LOG_DIR       = IMAGES_DIR / "logs"
 ELBOW_IMG_PATH    = IMG_LOG_DIR / "elbow_k.png"
-SIL_IMG_PATH      = IMG_LOG_DIR / "silhouette_k_opt.png"
 
 CENTROID_OUT_PATH = get_centroid_path("latent")         # runs/latent_ckm.pt
-REPORT_DIR       = RUNS_DIR / "clustering_report"
+REPORT_DIR        = RUNS_DIR / "clustering_report"
 OPTION_JSON_PATH  = REPORT_DIR / "option_ckm.json"
 
 
 # =========================================================
 # ユーティリティ
 # =========================================================
-def load_latent(train_path: Path | str, val_path: Path | str) -> torch.Tensor:
+def _load_latent(path: Path | str) -> torch.Tensor:
     """
-    学習済みChemoMAEで抽出した潜在表現 (train/val) を読み込んで結合する関数。
+    学習済みChemoMAEで抽出した潜在表現を読み込む関数。
 
     - np.load(mmap_mode="r") でメモリ節約しつつ読み込み
     - dtype を float32 に統一して torch.Tensor 化
     """
-    lt = np.load(train_path, mmap_mode="r")
-    lv = np.load(val_path, mmap_mode="r")
-    latent_cat = np.concatenate([lt, lv], axis=0)
-    if latent_cat.dtype != np.float32:
-        latent_cat = latent_cat.astype(np.float32, copy=False)
-    latent = torch.from_numpy(latent_cat)
-    return latent
+    x = np.load(path, mmap_mode="r")
+    if x.dtype != np.float32:
+        x = x.astype(np.float32, copy=False)
+    return torch.from_numpy(x)
 
 
-# =========================================================
-# main
-# =========================================================
+@torch.no_grad()
+def _assign_by_centroids(latent: torch.Tensor, centroids: torch.Tensor, *, device: str, chunk: int) -> torch.Tensor:
+    """
+    重心（K,d）に対して cosine 最近傍で割り当てラベル（N,）を返す。
+    """
+    X = latent.to(device)
+    C = centroids.to(device)
+
+    X = F.normalize(X, dim=1)
+    C = F.normalize(C, dim=1)
+
+    N = X.shape[0]
+    labels = torch.empty(N, dtype=torch.long, device=device)
+
+    for i0 in range(0, N, chunk):
+        i1 = min(N, i0 + chunk)
+        sims = X[i0:i1] @ C.T  # (b,K)
+        labels[i0:i1] = sims.argmax(dim=1)
+
+    return labels
+
+
+@torch.no_grad()
+def _predict_labels(ckm: CosineKMeans, latent: torch.Tensor, *, device: str, chunk: int) -> torch.Tensor:
+    """
+    可能なら ckm.predict を使い、無ければ内部重心で最近傍割り当て。
+    """
+    if hasattr(ckm, "predict") and callable(getattr(ckm, "predict")):
+        # 実装が対応している場合
+        return ckm.predict(latent.to(device), chunk=chunk)
+
+    # よくある属性名に対応
+    if hasattr(ckm, "centroids"):
+        centroids = getattr(ckm, "centroids")
+    elif hasattr(ckm, "centroids_"):
+        centroids = getattr(ckm, "centroids_")
+    else:
+        raise AttributeError("CosineKMeans has neither predict() nor centroids/centroids_ attribute.")
+
+    return _assign_by_centroids(latent, centroids, device=device, chunk=chunk)
+
+
 def main() -> None:
     # --- config 読み込み ---
     cfg = load_config()
@@ -78,16 +115,19 @@ def main() -> None:
     LATENT_DIR.mkdir(parents=True, exist_ok=True)
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # --- 潜在表現の読み込み (train + val を連結) ---
-    latent = load_latent(
-        LATENT_TRAIN_PATH,
-        LATENT_VAL_PATH,
-    )
+    # =====================================================
+    # 潜在表現の読み込み（trainのみでfitする）
+    # =====================================================
+    latent_train = _load_latent(LATENT_TRAIN_PATH)
+    latent_val   = _load_latent(LATENT_VAL_PATH)
+    latent_test  = _load_latent(LATENT_TEST_PATH)
 
-    # --- クラスタ数 K を自動決定（曲率法 / エルボー法）---
+    # =====================================================
+    # クラスタ数 K を自動決定（曲率法 / エルボー法）: trainのみ
+    # =====================================================
     k_list, inertias, k_elbow, idx, kappa = elbow_ckmeans(
         CosineKMeans,   # クラスタリングアルゴリズム（ここではCosineKMeans）
-        latent,
+        latent_train,
         device=device,
         k_max=k_max,
         chunk=chunk,
@@ -99,76 +139,50 @@ def main() -> None:
     plot_elbow_ckm(k_list, inertias, k_elbow, idx)
     plt.savefig(ELBOW_IMG_PATH, dpi=300)
     plt.close()
-    
+
     # =====================================================
-    # Silhouette による最終 k_opt の決定
-    #   - k_elbow ± 5 の範囲（[2, k_max] にクリップ）で
-    #     cosine silhouette を最大化する k を採用
+    # k_opt はエルボー法で決定（silhouette は使用しない）
     # =====================================================
-    k_candidates = [
-        k for k in range(k_elbow - 5, k_elbow + 6)
-        if 2 <= k <= k_max
-    ]
+    k_opt = int(k_elbow)
 
-    sil_scores = []
-    best_k = None
-    best_sil = -1.0
-
-    for k in k_candidates:
-        print(f"[Silhouette] k = {k}")
-
-        # --- クラスタリング ---
-        ckm_tmp = CosineKMeans(
-            n_components=int(k),
-            device=device,
-            random_state=seed,
-        )
-        labels = ckm_tmp.fit_predict(latent, chunk=chunk)
-
-        # --- Silhouette スコア算出（GPU）---
-        sil = silhouette_score_cosine_gpu(
-            latent,
-            labels,
-            device=device,
-            chunk=chunk,
-            return_numpy=True,
-        )
-        sil_scores.append(sil)
-        print(f"  silhouette_score = {sil:.6f}")
-
-        if sil > best_sil:
-            best_sil = sil
-            best_k = k
-
-    k_opt = int(best_k)
-
-    print("\n===== Silhouette Selection Result =====")
-    print(f"  k_elbow = {int(k_elbow)}")
-    print(f"  k_opt   = {k_opt}  (silhouette = {best_sil:.6f})\n")
-
-    # Silhouette プロット（横軸 = k_candidates）
-    plt.figure(figsize=(6,4))
-    plt.plot(k_candidates, sil_scores, marker="o", label="Silhouette score")
-    # 最適 k_opt
-    plt.axvline(k_opt, color="red", linestyle="--", label=f"k_opt={k_opt}")
-    plt.xticks(k_candidates)
-    plt.xlabel("k")
-    plt.ylabel("silhouette score")
-    plt.grid(True, linestyle="--", alpha=0.5)
-    plt.legend()
-    plt.savefig(SIL_IMG_PATH, dpi=300)
-    plt.close()
-
-    # --- CosineKMeans による実クラスタリング ---
+    # =====================================================
+    # CosineKMeans による実クラスタリング: trainのみ
+    # =====================================================
     ckm = CosineKMeans(
         n_components=int(k_opt),
         device=device,
         random_state=seed,
     )
-    ckm.fit(latent, chunk=chunk)
+    ckm.fit(latent_train, chunk=chunk)
 
     # --- 学習済みクラスタ中心を保存 ---
     ckm.save_centroids(CENTROID_OUT_PATH)
+
+    # =====================================================
+    # trainで学習した重心に対して val/test を割り当てて検証（ログ出力のみ）
+    # =====================================================
+    labels_train = _predict_labels(ckm, latent_train, device=device, chunk=chunk)
+    labels_val   = _predict_labels(ckm, latent_val,   device=device, chunk=chunk)
+    labels_test  = _predict_labels(ckm, latent_test,  device=device, chunk=chunk)
+
+    sil_train = silhouette_score_cosine_gpu(
+        latent_train.to(device), labels_train.to(device),
+        device=device, chunk=chunk, return_numpy=True
+    )
+    sil_val = silhouette_score_cosine_gpu(
+        latent_val.to(device), labels_val.to(device),
+        device=device, chunk=chunk, return_numpy=True
+    )
+    sil_test = silhouette_score_cosine_gpu(
+        latent_test.to(device), labels_test.to(device),
+        device=device, chunk=chunk, return_numpy=True
+    )
+
+    print("===== Silhouette Evaluation (fixed centroids from train) =====")
+    print(f"  train: {float(sil_train):.6f}")
+    print(f"  val  : {float(sil_val):.6f}")
+    print(f"  test : {float(sil_test):.6f}")
+    print()
 
     # ---- クラスタリングの設定を JSON ログとして保存 ----
     option = {
@@ -180,7 +194,7 @@ def main() -> None:
     }
     with OPTION_JSON_PATH.open("w", encoding="utf-8") as f:
         json.dump(option, f, ensure_ascii=False, indent=2)
-    
+
     print("✅ ALL DONE")
 
 

@@ -29,16 +29,30 @@ from src.evaluation.angles import (
 # =========================================================
 
 # --- 入力データ／ラベル ---
+# --- 入力データ／ラベル ---
+# ここでは **silhouette は全 split（train/val/test）で検証**する。
 INPUT_PATHS = {
-    # reflectance SNV (test)
-    "test_ref_snv":       get_reflectance_path("test", snv=True, downsampled=False),
-    # ChemoMAE latent (test)
+    # reflectance SNV
+    "train_ref_snv":      get_reflectance_path("train", snv=True, downsampled=False),
+    "val_ref_snv":        get_reflectance_path("val",   snv=True, downsampled=False),
+    "test_ref_snv":       get_reflectance_path("test",  snv=True, downsampled=False),
+
+    # ChemoMAE latent
+    "train_latent":       get_latent_path("train"),
+    "val_latent":         get_latent_path("val"),
     "test_latent":        get_latent_path("test"),
+
     # baseline: ref_snv_ckm (Hungarianで latent に整合済み)
-    "labels_ref_snv_ckm": get_cluster_label_path("test", space="ref_snv", matched=True),
+    "labels_train_ref_snv_ckm": get_cluster_label_path("train", space="ref_snv", matched=True),
+    "labels_val_ref_snv_ckm":   get_cluster_label_path("val",   space="ref_snv", matched=True),
+    "labels_test_ref_snv_ckm":  get_cluster_label_path("test",  space="ref_snv", matched=True),
+
     # latent_ckm ラベル
-    "labels_latent_ckm":  get_cluster_label_path("test", space="latent", matched=False),
+    "labels_train_latent_ckm":  get_cluster_label_path("train", space="latent", matched=False),
+    "labels_val_latent_ckm":    get_cluster_label_path("val",   space="latent", matched=False),
+    "labels_test_latent_ckm":   get_cluster_label_path("test",  space="latent", matched=False),
 }
+
 
 # --- 画像出力パス（log 配下に集約） ---
 IMG_DIR = IMAGES_DIR / "logs"
@@ -75,49 +89,64 @@ def main() -> None:
     # 出力ディレクトリの作成
     IMG_DIR.mkdir(parents=True, exist_ok=True)
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
+    # --- データ読込（splitごと） ---
+    X_ref_snv = {
+        "train": np.load(INPUT_PATHS["train_ref_snv"]),
+        "val":   np.load(INPUT_PATHS["val_ref_snv"]),
+        "test":  np.load(INPUT_PATHS["test_ref_snv"]),
+    }
+    y_ref = {
+        "train": np.load(INPUT_PATHS["labels_train_ref_snv_ckm"]),
+        "val":   np.load(INPUT_PATHS["labels_val_ref_snv_ckm"]),
+        "test":  np.load(INPUT_PATHS["labels_test_ref_snv_ckm"]),
+    }
+    X_latent = {
+        "train": np.load(INPUT_PATHS["train_latent"]),
+        "val":   np.load(INPUT_PATHS["val_latent"]),
+        "test":  np.load(INPUT_PATHS["test_latent"]),
+    }
+    y_lat = {
+        "train": np.load(INPUT_PATHS["labels_train_latent_ckm"]),
+        "val":   np.load(INPUT_PATHS["labels_val_latent_ckm"]),
+        "test":  np.load(INPUT_PATHS["labels_test_latent_ckm"]),
+    }
 
-    # --- データ読込 ---
-    X_ref_snv            = np.load(INPUT_PATHS["test_ref_snv"])
-    X_labels_ref_snv_ckm = np.load(INPUT_PATHS["labels_ref_snv_ckm"])
-    X_latent             = np.load(INPUT_PATHS["test_latent"])
-    X_labels_latent_ckm  = np.load(INPUT_PATHS["labels_latent_ckm"])
+    # --- Silhouette 計算（splitごと, GPU） ---
+    print("========== Silhouette サンプル計算 (GPU) : train/val/test ==========")
 
-    # --- Silhouette 計算 ---
-    print("\n========== Silhouette サンプル計算 (GPU) ==========")
-    print("→ baseline (reflectance_snv)")
-    silhouette_ref_snv_ckm = silhouette_samples_cosine_gpu(
-        X_ref_snv,
-        X_labels_ref_snv_ckm,
-        device=device,
-        chunk=chunk,
-        return_numpy=True,
-    )
-    print(
-        f"  Done. shape={silhouette_ref_snv_ckm.shape}, "
-        f"mean={silhouette_ref_snv_ckm.mean():.3f}"
-    )
+    sil_ref = {}
+    sil_lat = {}
+    for sp in ("train", "val", "test"):
+        print(f"→ baseline (reflectance_snv) [{sp}]")
+        sil_ref[sp] = silhouette_samples_cosine_gpu(
+            X_ref_snv[sp],
+            y_ref[sp],
+            device=device,
+            chunk=chunk,
+            return_numpy=True,
+        )
+        print(f"  Done. shape={sil_ref[sp].shape}, mean={sil_ref[sp].mean():.3f}")
 
-    print("→ ChemoMAE latent")
-    silhouette_latent_ckm = silhouette_samples_cosine_gpu(
-        X_latent,
-        X_labels_latent_ckm,
-        device=device,
-        chunk=chunk,
-        return_numpy=True,
-    )
-    print(
-        f"  Done. shape={silhouette_latent_ckm.shape}, "
-        f"mean={silhouette_latent_ckm.mean():.3f}"
-    )
+        print(f"→ ChemoMAE latent [{sp}]")
+        sil_lat[sp] = silhouette_samples_cosine_gpu(
+            X_latent[sp],
+            y_lat[sp],
+            device=device,
+            chunk=chunk,
+            return_numpy=True,
+        )
+        print(f"  Done. shape={sil_lat[sp].shape}, mean={sil_lat[sp].mean():.3f}")
 
-    # --- 可視化（Silhouette） ---
+    # --- 可視化（Silhouette: ref_snv vs latent, 各splitで3本ずつ） ---
     plot_silhouette_bar(
-        ref_scores=silhouette_ref_snv_ckm,
-        ref_cluster_ids=X_labels_ref_snv_ckm,
-        latent_scores=silhouette_latent_ckm,
-        latent_cluster_ids=X_labels_latent_ckm,
-        save_path=IMG_PATHS['silhouette']
+        ref_scores=sil_ref,
+        ref_cluster_ids=y_ref,
+        latent_scores=sil_lat,
+        latent_cluster_ids=y_lat,
+        save_path=IMG_PATHS["silhouette"],
+        splits=("train", "val", "test"),
     )
+
 
     # --- 幾何的検証（中心角度） ---
     C_ref = load_centroids(CENTROID_PATHS["ref_snv_matched"])
