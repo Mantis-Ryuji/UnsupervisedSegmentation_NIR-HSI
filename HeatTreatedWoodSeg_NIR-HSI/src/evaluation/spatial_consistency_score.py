@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any, Dict, Literal, Sequence, Tuple, Union, Optional
 from dataclasses import dataclass
-from typing import Optional, Literal, Dict, Tuple
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 Connectivity = Literal[4, 8]
+ArrayLike = Union[Sequence[float], np.ndarray]
+SCSMetric = Literal["scs_intra", "scs_inter"]
 
 
 @dataclass(frozen=True)
@@ -312,3 +316,164 @@ def compute_scs(
         mean_component_size_by_label=mean_component_size_by_label,
         small_component_ratio=small_component_ratio,
     )
+
+
+def _as_1d_float(x: ArrayLike, name: str) -> np.ndarray:
+    x = np.asarray(x, dtype=float)
+    if x.ndim != 1:
+        raise ValueError(f"{name} must be 1D, got shape={x.shape}")
+    if x.size == 0:
+        raise ValueError(f"{name} must be non-empty")
+    return x
+
+
+def _mean_std(x: np.ndarray) -> tuple[float, float]:
+    m = float(np.mean(x))
+    if x.size < 2:
+        return m, 0.0
+    return m, float(np.std(x, ddof=1))
+
+
+def _extract_metric_per_split(
+    scores: Dict[str, Dict[str, list[Dict[str, Any]]]],
+    *,
+    space: Literal["ref_snv", "latent"],
+    split: str,
+    metric: SCSMetric,
+) -> np.ndarray:
+    """
+    scores[space][split] は、各サンプルの dict の list を想定。
+    例: scores["latent"]["train"] = [{"sample":..., "scs_intra":0.9, ...}, ...]
+    """
+    if space not in scores:
+        raise KeyError(f"Missing '{space}' in scores keys={list(scores.keys())}")
+    if split not in scores[space]:
+        raise KeyError(f"Missing split '{split}' in scores['{space}']")
+
+    rows = scores[space][split]
+    if not isinstance(rows, list) or len(rows) == 0:
+        raise ValueError(f"scores['{space}']['{split}'] must be non-empty list")
+
+    vals = []
+    for r in rows:
+        if metric not in r:
+            raise KeyError(f"Missing '{metric}' in a row: keys={list(r.keys())}")
+        v = r[metric]
+        if v is None:
+            continue
+        vals.append(float(v))
+
+    return _as_1d_float(np.asarray(vals, dtype=float), f"{space}:{split}:{metric}")
+
+
+def plot_scs_bar(
+    *,
+    scores: Dict[str, Dict[str, list[Dict[str, Any]]]],
+    save_path: Union[str, Path],
+    metric: SCSMetric = "scs_intra",
+    splits: Tuple[str, str, str] = ("train", "val", "test"),
+    labels: Tuple[str, str] = ("ref_snv", "latent"),
+    colors: Tuple[str, str] = ("tab:blue", "tab:orange"),
+    ylabel: str | None = None,
+    y_min: float = 0.0,
+    y_max: float = 1.0,
+    dpi: int = 200,
+) -> None:
+    """
+    Split-wise SCS bar chart (ref_snv vs latent).
+
+    Parameters
+    ----------
+    scores : dict
+        13_compare_scs.py が吐く辞書（JSONを load したもの）を想定。
+        scores["ref_snv"][split] / scores["latent"][split] は list[dict]。
+    metric : {"scs_intra","scs_inter"}
+        描画する指標。
+    Notes
+    -----
+    - std は「各サンプルの SCS の split 内ばらつき（サンプル標準偏差）」。
+    - テキストはエラーバー上端に mean±std (.3g)。
+    """
+    if ylabel is None:
+        ylabel = f"SCS ({metric})"
+
+    # ---- compute mean/std per split ----
+    ref_means, ref_stds = [], []
+    lat_means, lat_stds = [], []
+    for sp in splits:
+        r = _extract_metric_per_split(scores, space="ref_snv", split=sp, metric=metric)
+        l = _extract_metric_per_split(scores, space="latent", split=sp, metric=metric)
+
+        rm, rs = _mean_std(r)
+        lm, ls = _mean_std(l)
+
+        ref_means.append(rm); ref_stds.append(rs)
+        lat_means.append(lm); lat_stds.append(ls)
+
+    ref_means = np.asarray(ref_means, dtype=float)
+    ref_stds  = np.asarray(ref_stds, dtype=float)
+    lat_means = np.asarray(lat_means, dtype=float)
+    lat_stds  = np.asarray(lat_stds, dtype=float)
+
+    # ---- plot ----
+    n = len(splits)
+    x = np.arange(n, dtype=float)
+    width = 0.36
+
+    fig, ax = plt.subplots(figsize=(6.2, 4.0), dpi=dpi)
+
+    bars_ref = ax.bar(
+        x - width / 2,
+        ref_means,
+        yerr=ref_stds,
+        capsize=5,
+        width=width,
+        color=colors[0],
+        align="center",
+        label=labels[0],
+    )
+    bars_lat = ax.bar(
+        x + width / 2,
+        lat_means,
+        yerr=lat_stds,
+        capsize=5,
+        width=width,
+        color=colors[1],
+        align="center",
+        label=labels[1],
+    )
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(list(splits))
+    ax.set_ylabel(ylabel)
+    ax.set_ylim(y_min, y_max)
+    ax.legend(loc="lower left")
+
+    # annotations at errorbar top: mean±std
+    pad = 0.02 * (y_max - y_min + 1e-12)
+    for rect, m, s in zip(bars_ref, ref_means, ref_stds):
+        ax.text(
+            rect.get_x() + rect.get_width() / 2,
+            m + s + pad,
+            f"{m:.3g}±{s:.3g}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            clip_on=False,
+        )
+    for rect, m, s in zip(bars_lat, lat_means, lat_stds):
+        ax.text(
+            rect.get_x() + rect.get_width() / 2,
+            m + s + pad,
+            f"{m:.3g}±{s:.3g}",
+            ha="center",
+            va="bottom",
+            fontsize=9,
+            clip_on=False,
+        )
+
+    fig.tight_layout()
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(save_path)
+    plt.close(fig)

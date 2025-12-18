@@ -9,13 +9,13 @@ model:
   # 入力系列長（波長チャンネル数）。データ次元に必ず一致させる
   seq_len: 210
   # モデル幅（埋め込み次元）。大きいほど表現力↑だがVRAM消費↑
-  d_model: 512
+  d_model: 256
   # マルチヘッド数。d_modelはnheadで割り切れる必要あり
   nhead: 8
   # Transformer Encoder の層数。深さが増えるほど表現力↑・計算量↑
-  num_layers: 8
+  num_layers: 4
   # FFN部の隠れ次元。d_modelの4倍程度が一般的
-  dim_feedforward: 2048
+  dim_feedforward: 1024
   # Dropout率。
   dropout: 0.1
   # Decoderの層数
@@ -28,8 +28,8 @@ model:
   # -------------------------
   # シーケンスを n_patches 等分し、そのうち n_mask 数のパッチをマスク
   # ※ seq_len は n_patches で割り切れる必要がある
-  n_patches: 15
-  n_mask: 12 # 80%
+  n_patches: 30
+  n_mask: 24 # 80%
 
 # -------------------------
 # 学習設定

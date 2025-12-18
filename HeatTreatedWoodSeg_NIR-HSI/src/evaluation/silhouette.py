@@ -156,7 +156,7 @@ def plot_silhouette_bar(
     ax.set_xticklabels(list(splits))
     ax.set_ylabel(ylabel)
     ax.set_ylim(-1.0, 1.0)
-    ax.legend()
+    ax.legend(loc="lower left")
 
     # annotations at errorbar top: mean±std
     for rect, m, s in zip(bars_ref, ref_means, ref_stds):

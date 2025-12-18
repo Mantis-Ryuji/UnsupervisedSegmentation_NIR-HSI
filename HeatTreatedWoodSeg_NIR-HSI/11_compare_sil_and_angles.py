@@ -88,7 +88,6 @@ def main() -> None:
 
     # 出力ディレクトリの作成
     IMG_DIR.mkdir(parents=True, exist_ok=True)
-    RUNS_DIR.mkdir(parents=True, exist_ok=True)
     # --- データ読込（splitごと） ---
     X_ref_snv = {
         "train": np.load(INPUT_PATHS["train_ref_snv"]),
