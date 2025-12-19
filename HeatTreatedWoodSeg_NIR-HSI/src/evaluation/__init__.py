@@ -19,7 +19,8 @@ from .label_matching import (
 )
 
 from .spatial_consistency_score import (
-    compute_scs
+    compute_scs,
+    plot_scs_bar,
 )
 
 __all__ = [
@@ -37,5 +38,6 @@ __all__ = [
     "save_aligned_ref_centroids",
     "verify_label_matching",
     
-    "compute_scs"
+    "compute_scs",
+    "plot_scs_bar"
 ]

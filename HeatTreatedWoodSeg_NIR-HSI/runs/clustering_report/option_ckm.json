@@ -3,5 +3,5 @@
   "device": "cuda",
   "random_state": 42,
   "chunk": 5000000,
-  "k_max": 100
+  "k_max": 50
 }

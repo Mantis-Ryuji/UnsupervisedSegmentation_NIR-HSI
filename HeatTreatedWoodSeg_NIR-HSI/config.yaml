@@ -13,7 +13,7 @@ model:
   # マルチヘッド数。d_modelはnheadで割り切れる必要あり
   nhead: 8
   # Transformer Encoder の層数。深さが増えるほど表現力↑・計算量↑
-  num_layers: 4
+  num_layers: 8
   # FFN部の隠れ次元。d_modelの4倍程度が一般的
   dim_feedforward: 1024
   # Dropout率。
@@ -50,10 +50,10 @@ training:
   eps: 1.0e-8              # 数値安定用イプシロン
 
   # Scheduler (warmup + cosine annealing)
-  warmup_epochs: 1        # 学習初期のウォームアップ。
+  warmup_epochs: 2        # 学習初期のウォームアップ。
   min_lr_scale: 0.02      # 最終LRは base_lr×0.02。
  
-  epochs: 100              # 最大エポック数（早停にかからなければここまで回す）
+  epochs: 200              # 最大エポック数（早停にかからなければここまで回す）
   early_stop_patience: 10  # val改善が途切れた連続エポック数で早停
 
 # -------------------------
@@ -69,7 +69,7 @@ test:
 # -------------------------
 clustering:
   # エルボー法で探索する最大クラスタ数K。
-  k_max: 100
+  k_max: 50
   # ストリーミング処理時のチャンクサイズ（サンプル数）。
   # VRAM/RAMに合わせて調整。大きいほど高速だが負荷↑
   chunk: 5000000

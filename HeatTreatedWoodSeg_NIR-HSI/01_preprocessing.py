@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import os
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
-from chemomae.utils.seed import set_global_seed
+from chemomae.utils import set_global_seed
 
 from src.preprocessing import (
     load_sample_list,
@@ -9,8 +11,7 @@ from src.preprocessing import (
     return_full_dataset_np,
     return_downsampled_dataset_np,
 )
-from src.core.config import load_config
-from src.core.paths import IMAGES_DIR, get_split_dir
+from src.core import load_config, IMAGES_DIR, get_split_dir
 
 
 # =========================================================
@@ -52,6 +53,7 @@ def main() -> None:
                 data_list=data_list,
                 masks=masks,
                 seed=seed,
+                ratio=0.1
             )
 
         # --- full dataset 生成 ---

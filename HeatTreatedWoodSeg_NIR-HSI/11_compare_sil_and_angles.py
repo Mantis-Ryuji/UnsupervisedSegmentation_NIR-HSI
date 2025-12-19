@@ -1,21 +1,23 @@
+from __future__ import annotations
+
 import os
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 import numpy as np
 import torch
-from chemomae.utils.seed import set_global_seed
+from chemomae.utils import set_global_seed
 from chemomae.clustering import silhouette_samples_cosine_gpu
 
-from src.core.config import load_config
-from src.core.paths import (
+from src.core import (
+    load_config,
     RUNS_DIR,
     IMAGES_DIR,
     get_reflectance_path,
     get_latent_path,
     get_cluster_label_path,
 )
-from src.evaluation.silhouette import plot_silhouette_bar
-from src.evaluation.angles import (
+from src.evaluation import (
+    plot_silhouette_bar,
     load_centroids,
     angle_matrix,
     plot_angle_kde_comparison,

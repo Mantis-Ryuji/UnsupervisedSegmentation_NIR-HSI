@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -11,11 +13,10 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from chemomae.models import ChemoMAE
 from chemomae.training import TesterConfig, Tester
-from chemomae.utils.seed import set_global_seed
+from chemomae.utils import set_global_seed
 
-from src.core.config import load_config
-from src.core.paths import RUNS_DIR, IMAGES_DIR, get_reflectance_path
-from src.viz.history import plot_training_history
+from src.core import load_config, RUNS_DIR, IMAGES_DIR, get_reflectance_path
+from src.viz import plot_training_history
 
 
 # =========================================================

@@ -85,20 +85,29 @@ def return_downsampled_dataset_np(
     trim: bool = False,
 ) -> np.ndarray:
     """
-    SNV → マスク抽出 → FPS（cos幾何, CUDA自動使用）→ (任意)縁トリム → 連結＆保存
+    SNV → マスク抽出 → **(全サンプル連結)** → FPS（cos幾何, CUDA自動使用）→ (任意)縁トリム → 保存
     保存先: data/{data_folder}/{out_name}
+
+    Notes
+    -----
+    - 目的：サンプル間でも冗長な木材NIRスペクトルに対して、**サンプル単位ではなく全体で多様性**を確保する。
     """
     if len(data_list) != len(masks):
         raise ValueError(f"data_list と masks の長さが一致しません: {len(data_list)} vs {len(masks)}")
+    if ratio <= 0:
+        raise ValueError(f"ratio must be > 0, got {ratio}")
 
     scaler = SNVScaler()
 
-    down_list: List[np.ndarray] = []
+    # ---------------------------------------------------------
+    # 1) 各サンプルから木材画素を抽出して SNV、まずは全部連結
+    # ---------------------------------------------------------
+    snv_list: List[np.ndarray] = []
 
     for data, mask in tqdm(
         zip(data_list, masks),
         total=len(data_list),
-        desc=f"Downsampling ({data_folder})",
+        desc=f"Collect & SNV ({data_folder})",
     ):
         H, W, C = data.shape
         flat_data = data.reshape(-1, C)
@@ -112,31 +121,46 @@ def return_downsampled_dataset_np(
         X = flat_data[selected]  # (N, C)
 
         # SNV（ピクセル単位）
-        X_snv = scaler.transform(X)
+        X_snv = scaler.transform(X).astype(np.float32, copy=False)
 
-        # FPS（cosine geometry, GPU自動選択）
-        if ratio >= 1.0:
-            X_down = X_snv.astype(np.float32, copy=False)
-        else:
-            X_down = cosine_fps_downsample(
-                X_snv.astype(np.float32, copy=False),
-                ratio=ratio,
-                seed=seed
-            )
+        snv_list.append(X_snv)
 
-        # Rim trimming (optional)
-        if trim:
-            X_down = trim_rim_by_knn_cosine_gpu(X_down)
-
-        down_list.append(X_down)
-
-    out = (
+    X_all = (
         np.empty((0, data_list[0].shape[-1]), dtype=np.float32)
-        if not down_list
-        else np.concatenate(down_list, axis=0)
+        if not snv_list
+        else np.concatenate(snv_list, axis=0)
     )
 
+    # 連結後にリストを解放（メモリ節約）
+    snv_list.clear()
+
+    # ---------------------------------------------------------
+    # 2) 全体で FPS（cosine geometry, GPU自動選択）
+    # ---------------------------------------------------------
+    if X_all.shape[0] == 0:
+        out = X_all
+    else:
+        if ratio >= 1.0:
+            out = X_all.astype(np.float32, copy=False)
+        else:
+            out = cosine_fps_downsample(
+                X_all.astype(np.float32, copy=False),
+                ratio=ratio,
+                seed=seed,
+            )
+
+        # -----------------------------------------------------
+        # 3) Rim trimming (optional)
+        #    ※計算量・メモリの観点から FPS 後に適用（点数が減ってから）
+        # -----------------------------------------------------
+        if trim and out.shape[0] > 0:
+            out = trim_rim_by_knn_cosine_gpu(out)
+
+    # ---------------------------------------------------------
+    # 4) 保存
+    # ---------------------------------------------------------
     out_dir = get_split_dir(data_folder)
     out_dir.mkdir(parents=True, exist_ok=True)
     np.save(out_dir / out_name, out)
+
     return out

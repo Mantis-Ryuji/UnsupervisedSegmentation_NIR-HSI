@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -9,17 +11,17 @@ import matplotlib.pyplot as plt
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from chemomae.utils.seed import set_global_seed
+from chemomae.utils import set_global_seed
 from chemomae.preprocessing import cosine_fps_downsample
 from chemomae.models import ChemoMAE
 
-from src.core.config import load_config
-from src.core.paths import (
+from src.core import (
+    load_config,
     RUNS_DIR,
     IMAGES_DIR,
     get_reflectance_path,
 )
-from src.viz.recon import plot_recon_grid
+from src.viz import plot_recon_grid
 
 
 # =========================================================

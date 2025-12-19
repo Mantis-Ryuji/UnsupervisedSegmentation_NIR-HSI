@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -10,10 +12,10 @@ import numpy as np
 import torch
 
 from chemomae.clustering import CosineKMeans
-from chemomae.utils.seed import set_global_seed
+from chemomae.utils import set_global_seed
 
-from src.core.config import load_config
-from src.core.paths import (
+from src.core import load_config
+from src.core import (
     SPECTRA_DIR,
     RUNS_DIR,
     get_latent_path,
@@ -23,11 +25,9 @@ from src.core.paths import (
     get_centroid_path,
 )
 from src.preprocessing import load_sample_list
-from src.viz.clusters import (
+from src.viz import (
     clustering_results_list_per_sample,
     plot_cluster_distribution,
-)
-from src.viz.spectra import (
     plot_spectra,
     plot_spectra_2nd_derive,
 )

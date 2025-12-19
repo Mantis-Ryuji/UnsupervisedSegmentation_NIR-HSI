@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import os
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 from pathlib import Path
 from typing import Any, Dict, List, Literal
 
 import numpy as np
 
 from src.preprocessing import load_sample_list
-from src.core.paths import DATA_DIR, IMAGES_DIR, get_split_dir
-from src.evaluation.spatial_consistency_score import compute_scs, plot_scs_bar
+from src.core import DATA_DIR, IMAGES_DIR, get_split_dir
+from src.evaluation import compute_scs, plot_scs_bar
 
 
 Mode = Literal["ref_snv_ckm_matched", "latent_ckm"]

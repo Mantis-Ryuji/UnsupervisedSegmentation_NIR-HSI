@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -11,8 +13,8 @@ import torch
 from chemomae.clustering import CosineKMeans
 from chemomae.utils.seed import set_global_seed
 
-from src.core.config import load_config
-from src.core.paths import (
+from src.core import (
+    load_config,
     RUNS_DIR,
     IMAGES_DIR,
     get_reflectance_path,
@@ -24,7 +26,7 @@ from src.viz import (
     clustering_results_list_per_sample,
     plot_cluster_distribution,
 )
-from src.evaluation.label_matching import (
+from src.evaluation import (
     compute_label_map,
     apply_map,
     plot_confusion_heatmap,

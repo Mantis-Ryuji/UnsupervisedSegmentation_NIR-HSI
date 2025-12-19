@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -13,10 +15,9 @@ from chemomae.training import (
     build_optimizer,
     build_scheduler,
 )
-from chemomae.utils.seed import set_global_seed
+from chemomae.utils import set_global_seed
 
-from src.core.config import load_config
-from src.core.paths import get_reflectance_path
+from src.core import load_config, get_reflectance_path
 
 
 # =========================================================

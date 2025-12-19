@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
@@ -10,10 +12,10 @@ import torch
 import torch.nn.functional as F
 
 from chemomae.clustering import CosineKMeans, elbow_ckmeans, plot_elbow_ckm, silhouette_score_cosine_gpu
-from chemomae.utils.seed import set_global_seed
+from chemomae.utils import set_global_seed
 
-from src.core.config import load_config
-from src.core.paths import (
+from src.core import (
+    load_config,
     LATENT_DIR,
     RUNS_DIR,
     IMAGES_DIR,
