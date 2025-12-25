@@ -74,7 +74,7 @@ def main() -> None:
     model.to(device)
 
     # --- Tester によるテスト損失の計算 ---
-    tester_cfg = TesterConfig(device=device)
+    tester_cfg = TesterConfig(device=device, loss_type="sse", reduction="batch_mean")
     tester = Tester(model, tester_cfg)
     test_loss = tester(test_loader)
     print(f"Test Loss : {test_loss:.5f}")

@@ -55,7 +55,7 @@ def plot_training_history(training_history, save_path=None, show=False):
                    label=f"test@best(val) = {float(test_loss):.3g} (ep {best_epoch})")
 
     ax.set_xlabel("epoch")
-    ax.set_ylabel("Masked MSE")
+    ax.set_ylabel("Masked SSE (batch mean)")
     ax.grid(True, alpha=0.3)
     ax.legend()
 

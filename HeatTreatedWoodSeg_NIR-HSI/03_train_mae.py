@@ -103,6 +103,8 @@ def main() -> None:
     # --- Trainer Config ---
     trainer_cfg = TrainerConfig(
         device=device,
+        loss_type="sse",
+        reduction="batch_mean",
         early_stop_patience=early_stop,
     )
 

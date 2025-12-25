@@ -52,6 +52,12 @@
 |----|----|----|
 | <img src="images/labels/W1_cluster_labels_latent_ckm.png"> | <img src="images/labels/W2_cluster_labels_latent_ckm.png"> | <img src="images/labels/W3_cluster_labels_latent_ckm.png"> |
 
+### X: ポプラ
+
+| X1 | X2 | X3 |
+|----|----|----|
+| <img src="images/labels/X1_cluster_labels_latent_ckm.png"> | <img src="images/labels/X2_cluster_labels_latent_ckm.png"> | <img src="images/labels/X3_cluster_labels_latent_ckm.png"> |
+
 ### Y: スプルース
 
 | Y1 | Y2 | Y3 |

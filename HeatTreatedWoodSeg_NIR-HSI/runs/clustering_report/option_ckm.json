@@ -1,5 +1,5 @@
 {
-  "k_opt": 10,
+  "k_opt": 9,
   "device": "cuda",
   "random_state": 42,
   "chunk": 5000000,
