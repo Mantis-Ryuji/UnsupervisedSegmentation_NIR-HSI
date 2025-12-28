@@ -1,108 +1,129 @@
-## MAEの学習
+## 熱処理木材の教師なしセグメンテーション
+
+～～～
 
 ---
 
-## セグメンテーション結果
+### 測定条件
 
-<details><summary><b> train </b></summary>
+近赤外ハイパースペクトル画像は、InGaAs センサーを搭載したラインスキャン方式のハイパースペクトルカメラ（住友電工、Compovision）を用いて取得した。試料には、複数の温度・時間条件で処理した熱処理木材（10 樹種）を用いた。
 
-### 試験条件Matrix
+#### 測定条件
+- 露光時間：15 ms  
+- フレームレート：30 Hz  
+- 波長範囲：913 – 2519 nm（波長間隔：6.2 nm，256 dim）  
+- 空間分解能：0.38 mm/pixel（視野幅：12 cm，320 pixels）
 
+#### 測定試料
 
+本研究では、以下の 10 樹種を測定対象とした。<br> 
+クスノキ、クリ、ヒノキ、マツ、ヤマザクラ、ライムウッド、ハードメープル、ポプラ、スプルース、オーク　<br>
 
-### A: クスノキ
+各樹種について、温度および加熱時間の異なる熱処理条件下で試料を作製し、測定を行った。熱処理条件は Table 1 に示すとおりである。
 
-| A1 | A2 | A3 |
-|----|----|----|
-| <img src="images/labels/A1_cluster_labels_latent_ckm.png"> | <img src="images/labels/A2_cluster_labels_latent_ckm.png"> | <img src="images/labels/A3_cluster_labels_latent_ckm.png"> |
+##### Table 1. 熱処理条件（学習用データ）
 
-### B: クリ
+| Temperature | t1  | t2    | t3    | t4    | t5    | t6    | t7    | t8    | t9    |
+|-------------|-----|-------|-------|-------|-------|-------|-------|-------|-------|
+| $120\,^{\circ}\mathrm{C}$ | 0h  | 4d    | 8d    | 16d   | 32d   | 64d   | 128d  | 256d  | 512d  |
+| $140\,^{\circ}\mathrm{C}$ | 0h  | 12h   | 1d    | 2d    | 4d    | 8d    | 16d   | 32d   | 64d   |
+| $160\,^{\circ}\mathrm{C}$ | 0h  | 3h    | 6h    | 12h   | 1d    | 2d    | 4d    | 8d    | 16d   |
+| $180\,^{\circ}\mathrm{C}$ | 0h  | 0.75h | 1.5h  | 3h    | 6h    | 12h   | 1d    | 2d    | 4d    |
 
-| B1 | B2 | B3 |
-|----|----|----|
-| <img src="images/labels/B1_cluster_labels_latent_ckm.png"> | <img src="images/labels/B2_cluster_labels_latent_ckm.png"> | <img src="images/labels/B3_cluster_labels_latent_ckm.png"> |
+学習用データとして、10 樹種 × 4 温度条件 × 9 時間条件の各組合せからそれぞれ 1 試料ずつを選択し、計 360 枚の試料をタイル状に配置して一括測定を行った。<br>
 
-### C: ヒノキ
+さらに、モデル評価用として検証およびテストデータを別途構成した。
+各 split では、特定の温度条件下において異なる加熱時間の試料を各樹種につき 1 枚ずつ選択し、学習用データと同様にタイル状に配置して測定した。
 
-| C1 | C2 | C3 |
-|----|----|----|
-| <img src="images/labels/C1_cluster_labels_latent_ckm.png"> | <img src="images/labels/C2_cluster_labels_latent_ckm.png"> | <img src="images/labels/C3_cluster_labels_latent_ckm.png"> |
+##### Table 2. Validation / Test 用熱処理条件
 
-### D: マツ
-
-| D1 | D2 | D3 |
-|----|----|----|
-| <img src="images/labels/D1_cluster_labels_latent_ckm.png"> | <img src="images/labels/D2_cluster_labels_latent_ckm.png"> | <img src="images/labels/D3_cluster_labels_latent_ckm.png"> |
-
-### E: ヤマザクラ
-
-| E1 | E2 | E3 |
-|----|----|----|
-| <img src="images/labels/E1_cluster_labels_latent_ckm.png"> | <img src="images/labels/E2_cluster_labels_latent_ckm.png"> | <img src="images/labels/E3_cluster_labels_latent_ckm.png"> |
-
-### V: ライムウッド
-
-| V1 | V2 | V3 |
-|----|----|----|
-| <img src="images/labels/V1_cluster_labels_latent_ckm.png"> | <img src="images/labels/V2_cluster_labels_latent_ckm.png"> | <img src="images/labels/V3_cluster_labels_latent_ckm.png"> |
-
-### W: ハードメープル
-
-| W1 | W2 | W3 |
-|----|----|----|
-| <img src="images/labels/W1_cluster_labels_latent_ckm.png"> | <img src="images/labels/W2_cluster_labels_latent_ckm.png"> | <img src="images/labels/W3_cluster_labels_latent_ckm.png"> |
-
-### X: ポプラ
-
-| X1 | X2 | X3 |
-|----|----|----|
-| <img src="images/labels/X1_cluster_labels_latent_ckm.png"> | <img src="images/labels/X2_cluster_labels_latent_ckm.png"> | <img src="images/labels/X3_cluster_labels_latent_ckm.png"> |
-
-### Y: スプルース
-
-| Y1 | Y2 | Y3 |
-|----|----|----|
-| <img src="images/labels/Y1_cluster_labels_latent_ckm.png"> | <img src="images/labels/Y2_cluster_labels_latent_ckm.png"> | <img src="images/labels/Y3_cluster_labels_latent_ckm.png"> |
-
-### Z: オーク
-
-| Z1 | Z2 | Z3 |
-|----|----|----|
-| <img src="images/labels/Z1_cluster_labels_latent_ckm.png"> | <img src="images/labels/Z2_cluster_labels_latent_ckm.png"> | <img src="images/labels/Z3_cluster_labels_latent_ckm.png"> |
-
-</details>
-
-<details><summary><b> val </b></summary>
-
-### 試料条件Matrix
-
-
-
-### 180℃
-
-| tile1 | tile2 | tile3 |
-|----|----|----|
-| <img src="images/labels/180C_tile1_cluster_labels_latent_ckm.png"> | <img src="images/labels/180C_tile2_cluster_labels_latent_ckm.png"> | <img src="images/labels/180C_tile3_cluster_labels_latent_ckm.png"> |
-
-</details>
-
-<details><summary><b> test </b></summary>
-
-### 試験条件Matrix
-
-
-
-### 160℃
-
-| tile1 | tile2 | tile3 |
-|----|----|----|
-| <img src="images/labels/160C_tile1_cluster_labels_latent_ckm.png"> | <img src="images/labels/160C_tile2_cluster_labels_latent_ckm.png"> | <img src="images/labels/160C_tile3_cluster_labels_latent_ckm.png"> |
-
-</details>
+| Split | Temperature | t2    | t6    | t9    |
+|-------|-------------|-------|-------|-------|
+| val   | $180\,^{\circ}\mathrm{C}$ | 0.75h | 12h   | 4d    |
+| test  | $160\,^{\circ}\mathrm{C}$ | 3h    | 2d    | 16d   |
 
 ---
 
-## MAE効果検証
+### 前処理
+
+取得したハイパースペクトル画像に対し、まず各画素の反射強度スペクトルの L2 ノルム画像を算出し、これに大津の二値化を適用することで二値化画像を作成した。二値化に先立ち、スペクトル汚染の影響を除去する目的で画像端部の画素を削除した。本実験では古材とは異なり表面からの距離を考慮しないため、縁から 3 pixel を削除したが，実際には 1 pixel 程度でも十分であると考えられる。<br>
+
+| 反射強度ノルム画像 | 二値化画像 |
+| ---------------- | ---------- |
+| <img src="images/norm_maps/A1_I_norm_map.png" height="400"> | <img src="images/masks/A1_masked_img.png" height="400"> |
+
+次に、反射強度を反射率へ変換し、得られた二値化画像をマスクとして木材領域のみを抽出した。反射率変換の際には、長波長側で SNR が急激に低下することが確認されたため、数値的安定性を考慮してスペクトルをクリップした。今回は分母が 0 に近づく波長帯が存在したため、便宜的に 210 次元 (2237nm以上) で切り落としている。<br>
+
+<img src="images/spectra/reference_snr.png"><br>
+
+本来は長波長側を切り落とさず、スペクトル品質が多少低下しても 256 次元全体を用いた解析を行いたいと考えている。今回のクリップは測定条件に起因する暫定的な処理であり、将来的には測定条件を見直した上で再測定を行いたい。<br>
+
+SNR の詳細については、[02_reference_snr.ipynb](02_reference_snr.ipynb) に示す。<br>
+
+
+さらに、反射率スペクトルに対して Standard Normal Variate（SNV）処理を適用し、測定条件や表面状態の違いに起因するベースライン変動を低減した。SNV 処理では、各スペクトルを平均 0、分散 1 に正規化するため、スペクトル間でノルムが揃う点に注意されたい。<br>
+
+具体的には，波長次元を $d$ とし、ある反射率スペクトルを $\mathbf{x} = (x_1, x_2, \dots, x_d)$ とすると、SNV 処理後のスペクトル $\tilde{\mathbf{x}}$ は次式で与えられる: <br>
+
+```math
+\tilde{x}_i
+=
+\frac{x_i - \mu}{\sigma},
+\qquad
+\mu = \frac{1}{d}\sum_{j=1}^d x_j,
+\quad
+\sigma = \sqrt{\frac{1}{d-1}\sum_{j=1}^d (x_j-\mu)^2}.
+```
+また、$\tilde{\mathbf{x}}$ の L2 ノルムは次のように評価できる: <br>
+
+```math
+\sigma^2
+=
+\frac{1}{d-1}\sum_{i=1}^d (x_i-\mu)^2
+\quad\Longrightarrow\quad
+\sum_{i=1}^d (x_i-\mu)^2 = (d-1)\sigma^2.
+```
+
+```math
+\therefore\quad
+\|\tilde{\mathbf{x}}\|_2
+=
+\frac{1}{\sigma}\sqrt{(d-1)\sigma^2}
+=
+\sqrt{d-1}.
+```
+したがって、SNV 処理後の各スペクトルは、平均 0、分散 1 を満たしつつ、L2 ノルムが $\sqrt{d-1}$ に揃った表現となる。そのため、この幾何に整合させるために本解析ではコサイン類似度を基礎指標とし、球面幾何に基づく手法を採用した解析フローを構築した。
 
 ---
 
+### Masked AutoEncoder の学習
+
+
+
+---
+
+### 効果検証
+
+recon の様子
++
+barplot
++
+center mds
+
+---
+
+### 考察
+
+
+
+---
+
+> ↓以下まだ検討中
+
+### 劣化スコアの定量化
+
+---
+
+### スペクトルの解釈
+
+---
