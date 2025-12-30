@@ -91,5 +91,3 @@
 | tile1 | tile2 | tile3 |
 |----|----|----|
 | <img src="../images/labels/160C_tile1_cluster_labels_ref_snv_ckm_matched.png"> | <img src="../images/labels/160C_tile2_cluster_labels_ref_snv_ckm_matched.png"> | <img src="../images/labels/160C_tile3_cluster_labels_ref_snv_ckm_matched.png"> |
-
-> val, test の条件要確認

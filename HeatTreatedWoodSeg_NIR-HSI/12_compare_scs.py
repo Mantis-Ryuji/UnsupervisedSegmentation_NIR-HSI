@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+
 os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
 
 from pathlib import Path
@@ -21,12 +22,7 @@ def _name_list_path(split: str) -> Path:
 
 
 def _label_map_path(split: str, sample_name: str, mode: Mode) -> Path:
-    return (
-        Path(DATA_DIR)
-        / split
-        / "labels"
-        / f"{sample_name}_cluster_labels_{mode}.npy"
-    )
+    return Path(DATA_DIR) / split / "labels" / f"{sample_name}_cluster_labels_{mode}.npy"
 
 
 def _load_label_map_2d(path: Path) -> np.ndarray:
@@ -40,10 +36,7 @@ def _load_label_map_2d(path: Path) -> np.ndarray:
     return y
 
 
-def main() -> None:
-    # -------------------------------------------------
-    # scores
-    # -------------------------------------------------
+def _compute_scores(*, connectivity: int) -> Dict[str, Dict[str, List[Dict[str, Any]]]]:
     scores: Dict[str, Dict[str, List[Dict[str, Any]]]] = {
         "ref_snv": {"train": [], "val": [], "test": []},
         "latent": {"train": [], "val": [], "test": []},
@@ -52,7 +45,7 @@ def main() -> None:
     scs_kwargs = dict(
         valid_mask=None,
         ignore_label=-1,
-        connectivity=4,
+        connectivity=connectivity,
         small_comp_thresh=16,
     )
 
@@ -69,7 +62,6 @@ def main() -> None:
                 {
                     "sample": name,
                     "scs_intra": float(r_ref.scs_intra),
-                    "scs_inter": float(r_ref.scs_inter),
                 }
             )
 
@@ -82,33 +74,33 @@ def main() -> None:
                 {
                     "sample": name,
                     "scs_intra": float(r_lat.scs_intra),
-                    "scs_inter": float(r_lat.scs_inter),
                 }
             )
 
+    return scores
+
+
+def main() -> None:
     # -------------------------------------------------
-    # プロット
+    # プロット出力先
     # -------------------------------------------------
     out_dir = Path(IMAGES_DIR) / "logs"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    plot_scs_bar(
-        scores=scores,
-        metric="scs_intra",
-        save_path=out_dir / "scs_intra_bar.png",
-        y_min=0.0,
-        y_max=1.1,
-        ylabel="Spatial Intra-cluster Consistency"
-    )
+    # -------------------------------------------------
+    # SCS(intra) を connectivity=4, 8 で比較
+    # -------------------------------------------------
+    for conn in (4, 8):
+        scores = _compute_scores(connectivity=conn)
 
-    plot_scs_bar(
-        scores=scores,
-        metric="scs_inter",
-        save_path=out_dir / "scs_inter_bar.png",
-        y_min=0.0,
-        y_max=0.3,
-        ylabel="Spatial Inter-cluster Discontinuity"
-    )
+        plot_scs_bar(
+            scores=scores,
+            metric="scs_intra",
+            save_path=out_dir / f"scs_intra_bar_conn{conn}.png",
+            y_min=0.0,
+            y_max=1.1,
+            ylabel = f"SCS (connectivity={conn})"
+        )
 
 
 if __name__ == "__main__":

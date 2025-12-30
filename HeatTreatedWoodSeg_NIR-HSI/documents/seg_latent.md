@@ -13,6 +13,8 @@
 |----|----|----|
 | <img src="../images/labels/A1_cluster_labels_latent_ckm.png"> | <img src="../images/labels/A2_cluster_labels_latent_ckm.png"> | <img src="../images/labels/A3_cluster_labels_latent_ckm.png"> |
 
+クスノキのコントロール（0h）があんまり良くない。けどこんなのしかなかった気がする...
+
 ### B: クリ
 
 | B1 | B2 | B3 |
