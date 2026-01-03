@@ -1,3 +1,9 @@
+"""
+To Do
+二値化は強度に対して行うように修正
+HeatTreatedWoodSeg_NIR-HSI 参考
+"""
+
 from __future__ import annotations
 
 import os
