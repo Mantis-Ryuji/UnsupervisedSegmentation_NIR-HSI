@@ -118,7 +118,7 @@ SNR の詳細については、[02_reference_snr.ipynb](02_reference_snr.ipynb) 
 
 ### 学習・評価の運用（train/val/test とクラスタリング）
 
-学習ハイパーパラメータは [config.yaml](config.yaml) にまとめている。データ分割は train/val/test の3分割で運用する。MAE は train のみで学習し、val は学習中の性能監視（早期停止およびベストモデル選択）に用いる。test は最終的な汎化性能の検証にのみ使用する。なお、MAE の学習データは cosine 類似度に基づく FPS（Farthest Point Sampling）で 1/10 のサイズにダウンサンプリングし、ハイパースペクトル画像に特有なスペクトルの冗長性を低減した（0.1 は恣意的に決定したため、被覆が飽和するratioをデータ駆動的に決定するよう修正する）。<br>
+学習ハイパーパラメータは [config.yaml](config.yaml) にまとめている。データ分割は train/val/test の3分割で運用する。MAE は train のみで学習し、val は学習中の性能監視（早期停止およびベストモデル選択）に用いる。test は最終的な汎化性能の検証にのみ使用する。なお、MAE の学習データは cosine 類似度に基づく FPS（Farthest Point Sampling）で 1/10 のサイズにダウンサンプリングし、ハイパースペクトル画像に特有なスペクトルの冗長性を低減した。<br>
 詳しくはこちら: [Farthest-Point Sampling on the Unit Hypersphere](https://github.com/Mantis-Ryuji/ChemoMAE/blob/main/docs/preprocessing/dowmsampling.md)
 <br>
 
