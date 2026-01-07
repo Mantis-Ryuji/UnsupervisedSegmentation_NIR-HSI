@@ -86,7 +86,7 @@ def main() -> None:
     model.to(device)
 
     # ---- 潜在表現抽出 (全可視) ----
-    extractor_cfg = ExtractorConfig(device=device, return_numpy=True)
+    extractor_cfg = ExtractorConfig(device=device, amp=False, return_numpy=True)
     extractor = Extractor(model, extractor_cfg)
 
     Z_train = extractor(train_loader)

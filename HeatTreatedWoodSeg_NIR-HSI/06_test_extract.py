@@ -68,7 +68,7 @@ def main() -> None:
     model.to(device)
 
     # --- Extractor による潜在表現抽出 ---
-    extractor_cfg = ExtractorConfig(device=device, return_numpy=True)
+    extractor_cfg = ExtractorConfig(device=device, amp=False, return_numpy=True)
     extractor = Extractor(model, extractor_cfg)
 
     Z_test = extractor(test_loader)
